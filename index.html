@@ -27,7 +27,7 @@
           <div class="scene" id="scene">
             <img class="shop" src="assets/art/storefront.webp" alt="저녁 불빛이 켜진 별밤분식의 주방과 골목">
             <div class="scene-badges"><span id="open-sign" class="open-sign">영업 중</span><span class="branch" id="branch-name">별밤 1호점</span></div>
-            <div class="stove"><img id="equipment" src="assets/art/stove-0.webp" alt="휴대용 가스레인지"></div>
+            <div id="equipment"></div>
             <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
           </div>
           <div class="hud">
@@ -38,7 +38,7 @@
         </div>
         <div class="workbench">
           <section class="panel queue-panel">
-            <div class="panel-head"><h2><i data-icon="people"></i>대기 주문</h2><span class="count" id="queue-count">1 / 6명</span></div>
+            <div class="panel-head"><h2><i data-icon="people"></i>대기 주문</h2><span class="count" id="queue-count">1 / 5명</span></div>
             <div class="queue-body"><div id="current-order"></div><div class="waiting-head"><h3>다음 손님</h3><small id="arrival"></small></div><ol id="waiting" aria-label="다음 주문 순서"></ol></div>
           </section>
           <section class="panel kitchen-panel">
@@ -46,10 +46,6 @@
             <div class="kitchen-body" id="kitchen"></div>
           </section>
         </div>
-        <section class="menu-counter" aria-label="전체 메뉴">
-          <div class="counter-head"><h2><i data-icon="menu"></i>오늘의 메뉴</h2><span>9종</span></div>
-          <div id="menu-shelf" class="menu-shelf"></div>
-        </section>
       </section>
       <section id="manage" class="subpage" aria-label="가게 관리" hidden></section>
       <section id="journal" class="subpage" aria-label="영업 일지" hidden></section>

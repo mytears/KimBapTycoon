@@ -82,11 +82,9 @@ function renderScene() {
     el.setAttribute("role", "img"); el.setAttribute("aria-label", el.title);
     paint(el.querySelector(".bubble"), i === 0 ? dish(q.menu) : String(i + 1));
   });
-  $("equipment").src = art("stove", game.speed);
-  $("equipment").alt = equipment[game.speed];
-  $("equipment").parentElement.title = equipment[game.speed];
+  paint($("equipment"), game.stations.map((k, slot) => '<div class="stove' + (k?.finish != null ? ' cooking' : '') +
+    '"><img src="' + art("stove", game.speed) + '" alt="' + (slot + 1) + '번 조리대 · ' + equipment[game.speed] + '"></div>').join(""));
   $("scene").dataset.level = game.speed;
-  $("scene").classList.toggle("cooking", game.kitchen?.finish != null);
   $("branch-name").textContent = "별밤 " + game.branches + "호점";
   $("open-sign").textContent = game.closed ? "영업 마감" : "영업 중";
   $("open-sign").classList.toggle("closed", game.closed);
@@ -102,32 +100,46 @@ function renderQueue() {
     '<span class="deadline">' + icon("timer") + '남은 시간 ' + timer(head) + '</span></div>' + meter(head) + '</div>'
     : '<div class="empty-ticket">' + icon(game.closed ? "moon" : "store") +
     '<b>' + (game.closed ? "오늘 영업을 마쳤어요" : "다음 손님을 기다리는 중") + '</b></div>');
-  paint($("waiting"), game.queue.length > 1 ? game.queue.slice(1).map((q, i) =>
-    '<li class="waiting-order"><span class="rank">' + String(i + 2).padStart(2, "0") + '</span>' + portrait(q) +
+  paint($("waiting"), Array.from({ length: capacity - 1 }, (_, i) => {
+    const q = game.queue[i + 1], rank = '<span class="rank">' + String(i + 2).padStart(2, "0") + '</span>';
+    if (!q) return '<li class="waiting-order vacant" aria-hidden="true">' + rank + '<span>빈 자리</span></li>';
+    return '<li class="waiting-order">' + rank + portrait(q) +
     '<div class="queued-dish"><b>' + menus[q.menu].name + '</b><small>' + guests[q.guest] + '</small></div>' +
-    '<div class="queued-time">' + temperament(q) + timer(q) + meter(q) + '</div></li>').join("")
-    : '<li class="empty-line">' + (game.closed ? "모든 주문이 끝났어요." : "아직 뒤에 기다리는 손님이 없어요.") + '</li>');
+    '<div class="queued-time">' + temperament(q) + timer(q) + meter(q) + '</div></li>';
+  }).join(""));
 }
 
-function renderKitchen() {
-  const head = game.queue[0], menu = menus[game.selected], k = game.kitchen;
-  if (!head) {
-    paint($("kitchen"), '<div class="empty-kitchen">' + icon(game.closed ? "moon" : "pan") + '<h3>' +
-      (game.closed ? "오늘의 조리 완료" : "주문 대기 중") + '</h3><p>' +
-      (game.closed ? "정산하고 다음 영업을 준비하세요." : "손님이 오면 조리를 시작할 수 있어요.") + '</p></div>' +
-      (game.closed ? '<button class="primary" data-settle>오늘의 정산 ' + icon("chevron") + '</button>' : ''));
-    return;
+function stationMarkup(k, slot) {
+  const title = (slot + 1) + "번 조리대";
+  if (!k) {
+    const available = pendingOrders(game).length > 0;
+    return '<button class="empty-station" data-choose="' + slot + '" aria-label="' + title + ' 메뉴 선택" ' +
+      (available ? '' : 'disabled') + '><span class="station-title">' + title + '</span><img src="' +
+      art("stove", game.speed) + '" alt=""><b>' + (available ? '메뉴 선택 ' + icon("chevron") : '주문 대기 중') + '</b></button>';
   }
-  const step = k?.step ?? 0, busy = k?.finish != null, ready = step >= menu.steps.length;
-  const controls = ready ? '<button class="primary ready" data-serve="' + head.id + '">' + icon("bell") + '첫 손님에게 건네기</button>'
+  const order = game.queue.find(q => q.id === k.ticket), menu = menus[order.menu];
+  const step = k.step, busy = k.finish != null, ready = step >= menu.steps.length;
+  const first = game.queue[0] === order;
+  const controls = ready ? '<button class="primary ready" data-serve="' + order.id + '" ' + (first ? '' : 'disabled') + '>' + icon("bell") + '손님에게 건네기</button>'
     : '<div class="step-controls" aria-label="조리 동작">' + menu.steps.map((name, i) =>
-      '<button class="step-button ' + (i === step ? 'active' : '') + '" data-ticket="' + head.id + '" data-step="' + i +
+      '<button class="step-button ' + (i === step ? 'active' : '') + '" data-ticket="' + order.id + '" data-step="' + i +
       '" ' + (i < step || busy ? "disabled" : "") + '><span class="step-num">' + (i < step ? icon("check") : "0" + (i + 1)) + '</span><b>' +
-      (busy && i === step ? '조리 중…' : name) + '</b>' + (i === step ? icon("chevron") : "") + '</button>').join("") + '</div>';
-  paint($("kitchen"), '<div class="recipe"><div class="plated">' + dish(game.selected) + '</div><div><small>선택한 레시피</small><h3>' +
+      name + '</b>' + (i === step ? icon(busy ? "timer" : "chevron") : "") + '</button>').join("") + '</div>';
+  return '<section class="loaded-station" aria-label="' + title + '"><div class="station-title">' + title + '<small>NO. ' +
+    serial(order.id) + '</small></div><div class="recipe"><div class="plated">' + dish(order.menu) + '</div><div><small>' + guests[order.guest] + '</small><h3>' +
     menu.name + '</h3><span class="stage-label">' + (ready ? "전 단계 완료" : (step + 1) + ' / ' + menu.steps.length + '단계') +
     '</span></div></div><div class="prep-heading"><h3>' + (ready ? "조리 완료" : "조리 순서") + '</h3><small>' +
-    (ready ? "따뜻할 때 내어 주세요" : "순서대로 눌러 주세요") + '</small></div>' + controls);
+    (ready ? (first ? "서빙 가능" : "앞 주문 대기 중") : (busy ? "조리 중…" : "순서대로 눌러 주세요")) + '</small></div>' + controls + '</section>';
+}
+function renderKitchen() {
+  if (game.closed) {
+    paint($("kitchen"), '<div class="empty-kitchen">' + icon("moon") + '<h3>오늘의 조리 완료</h3></div>' +
+      '<button class="primary" data-settle>오늘의 정산 ' + icon("chevron") + '</button>');
+    return;
+  }
+  paint($("kitchen"), '<div class="stations" data-count="' + game.stations.length + '">' +
+    game.stations.map(() => '<div class="station-slot"></div>').join("") + '</div>');
+  $("kitchen").querySelectorAll(".station-slot").forEach((el, slot) => paint(el, stationMarkup(game.stations[slot], slot)));
 }
 
 function refreshTimers() {
@@ -142,9 +154,10 @@ function refreshTimers() {
   }
   $("arrival").textContent = game.closed ? "마감" : game.queue.length >= capacity ? "만석" :
     game.nextArrival === null ? "입장 마감" : "다음 입장 " + Math.max(1, Math.ceil((game.nextArrival - game.elapsed) / 1000)) + "초";
-  if (game.kitchen?.finish != null) {
-    const active = $("kitchen").querySelector(".step-button.active");
-    active?.style.setProperty("--cooked", Math.min(100, 100 * (1 - (game.kitchen.finish - game.elapsed) / (1500 - 400 * game.speed))) + "%");
+  for (const k of game.stations) {
+    if (k?.finish == null) continue;
+    const active = $("kitchen").querySelector('.step-button.active[data-ticket="' + k.ticket + '"]');
+    active?.style.setProperty("--cooked", Math.min(100, 100 * (1 - (k.finish - game.elapsed) / stepDuration(game))) + "%");
   }
 }
 const upgrades = [
@@ -155,16 +168,18 @@ const upgrades = [
 const cost = u => u.base * (game[u.key] + (u.key === "branches" ? 0 : 1));
 const row = (label, value) => '<div class="stat"><span>' + label + '</span><b>' + value + '</b></div>';
 function renderManage() {
-  const descriptions = [equipment[Math.min(2, game.speed + 1)] + ' · 단계마다 조리 시간 0.4초 단축', '모든 메뉴 판매가 500원 상승', '분점마다 정산 수익 5,000원 추가'];
+  const busy = game.stations.some(Boolean);
+  const descriptions = [game.speed === 0 ? '조리대 1대 추가 · 두 주문 동시 조리 · 각 단계 0.4초 단축' :
+    equipment[Math.min(2, game.speed + 1)] + ' · 조리대 2대 · 각 단계 0.4초 단축', '모든 메뉴 판매가 500원 상승', '분점마다 정산 수익 5,000원 추가'];
   $("manage").innerHTML = '<h2>' + icon("upgrade") + '가게 관리</h2><div class="summary">' +
     row("운영 중인 매장", game.branches + "곳") + row("보유 자금", money(game.balance)) + '</div><h3>가게 개선</h3>' +
     upgrades.map((u, i) => {
       const max = game[u.key] >= u.max;
       return '<div class="item"><div class="upgrade-art">' + (i === 0 ? '<img src="' + art("stove", Math.min(2, game.speed + 1)) + '" alt="">' : icon(u.icon)) +
         '</div><div class="item-copy"><b>' + u.name + ' <em>Lv.' + game[u.key] + '</em></b><small>' + descriptions[i] +
-        '</small></div><button class="buy" data-buy="' + u.key + '" ' + (max || game.kitchen || game.balance < cost(u) ? "disabled" : "") + '>' +
+        '</small></div><button class="buy" data-buy="' + u.key + '" ' + (max || busy || game.balance < cost(u) ? "disabled" : "") + '>' +
         (max ? "개선 완료" : money(cost(u))) + '</button></div>';
-    }).join("") + (game.kitchen ? '<p>조리 중인 주문을 마치면 개선할 수 있어요.</p>' : '');
+    }).join("") + (busy ? '<p>조리 중인 주문을 마치면 개선할 수 있어요.</p>' : '');
 }
 function renderJournal() {
   $("journal").innerHTML = '<h2>' + icon("book") + '영업 일지</h2><h3>' + game.day + '일차 장부</h3><div class="summary">' +
@@ -174,8 +189,8 @@ function renderJournal() {
       d.served + '건 · 시간 초과 ' + d.missed + '건 · 분점 수익 ' + money(d.bonus) + '</small></div><strong>' + money(d.sales + d.bonus) + '</strong></div>').join("")
       : '<p>하루를 정산하면 영업 기록이 남아요.</p>');
 }
-function menuTiles() {
-  return menus.map((m, i) => '<button class="menu-tile" data-menu="' + i + '" aria-pressed="' + (game.selected === i) + '">' +
+function menuTiles(selected = null) {
+  return menus.map((m, i) => '<button class="menu-tile" data-menu="' + i + '" aria-pressed="' + (selected === i) + '">' +
     dish(i) + '<span>' + m.name + '</span><small>' + money(salePrice(game, i)) + '</small></button>').join("");
 }
 function render() {
@@ -190,7 +205,6 @@ function render() {
   if (page === "manage") { renderManage(); return; }
   if (page === "journal") { renderJournal(); return; }
   renderScene(); renderQueue(); renderKitchen();
-  paint($("menu-shelf"), menuTiles());
   refreshTimers();
 }
 
@@ -235,21 +249,36 @@ function settlement() {
     '</div><button class="primary" id="next-day">다음 날 영업 시작 ' + icon("chevron") + '</button>');
   $("next-day").onclick = () => { if (!game.closed) return; settleDay(game); save(); $("modal").close(); render(); notify(game.day + "일차 영업을 시작해요."); };
 }
-function cookbook(selected = game.selected) {
+function cookbook(selected = 0) {
   const m = menus[selected];
-  dialog("메뉴판", '<div class="book-grid">' + menuTiles() + '</div><div class="book-detail"><b>' + m.name + '</b><ol>' +
-    m.steps.map(s => '<li>' + s + '</li>').join("") + '</ol></div><button class="primary" id="select-menu" ' +
-    (game.kitchen || !game.queue.length ? "disabled" : "") + '>' + (game.kitchen ? "주문 조리 중" : !game.queue.length ? "주문 대기 중" : "이 메뉴 선택") + '</button>', "book");
+  dialog("메뉴판", '<div class="book-grid">' + menuTiles(selected) + '</div><div class="book-detail"><b>' + m.name + '</b><ol>' +
+    m.steps.map(s => '<li>' + s + '</li>').join("") + '</ol></div>', "book");
   for (const b of $("dialog-body").querySelectorAll("[data-menu]")) {
-    b.setAttribute("aria-pressed", String(+b.dataset.menu === selected));
     b.onclick = () => cookbook(+b.dataset.menu);
   }
-  $("select-menu").onclick = () => { game.selected = selected; save(); $("modal").close(); render(); tone(420); };
 }
 function toggleSound() { game.sound = !game.sound; save(); render(); tone(640); }
+
+function chooseDish(slot) {
+  const pending = pendingOrders(game);
+  if (game.stations[slot] !== null || !pending.length) return;
+  const orders = pending.map(q => menus[q.menu].name).join(" · ");
+  dialog((slot + 1) + "번 조리대 · 메뉴 선택", '<p class="picker-orders" role="status">조리할 주문 <b>' + orders +
+    '</b></p><div class="book-grid">' + menuTiles() + '</div>', "book");
+  $("dialog-body").querySelector(".book-grid").onclick = e => {
+    const tile = e.target.closest("[data-menu]");
+    if (!tile) return;
+    if (!placeDish(game, slot, +tile.dataset.menu)) {
+      $("dialog-body").querySelector(".picker-orders").textContent = "주문을 확인하세요 · " + orders;
+      tone(230); return;
+    }
+    save(); $("modal").close(); tone(410); render();
+  };
+}
+
 function settings() {
   dialog("설정", '<div class="stat"><span>효과음</span><button id="toggle-audio" class="buy">' + (game.sound ? "켜짐" : "꺼짐") +
-    '</button></div><h3>영업 방법</h3><p>하루에 손님 9명이 찾아와요. 가장 먼저 주문한 손님의 메뉴를 레시피 순서대로 눌러 조리하고, 시간이 다 되기 전에 건네세요.</p><p>성미 급한 손님은 ' +
+    '</button></div><h3>영업 방법</h3><p>빈 조리대의 메뉴 선택을 누르고 주문에 맞는 음식을 고르면 첫 단계가 시작돼요. 남은 단계를 마친 뒤 먼저 주문한 손님부터 음식을 건네세요.</p><p>12종의 손님 중 하루에 9명이 방문하고, 최대 5명이 기다려요. 성미 급한 손님은 ' +
     tempers.hasty.seconds + '초, 보통 손님은 ' + tempers.regular.seconds + '초, 느긋한 손님은 ' + tempers.easy.seconds +
     '초 동안 기다려요. 메뉴판이나 다른 화면을 열면 영업 시간이 잠시 멈춰요.</p><button id="reset" class="secondary">처음부터 시작</button>');
   $("toggle-audio").onclick = () => { toggleSound(); settings(); };
@@ -264,32 +293,33 @@ $("kitchen").addEventListener("click", e => {
   if (!button || button.disabled) return;
   sync();
   if (button.hasAttribute("data-settle")) { if (game.closed) settlement(); return; }
-  const head = game.queue[0];
-  if (!head) return;
+  if (button.hasAttribute("data-choose")) { chooseDish(+button.dataset.choose); return; }
   if (button.hasAttribute("data-serve")) {
     const amount = serve(game, +button.dataset.serve);
     if (!amount) return;
     tone(880); notify("판매 완료! +" + money(amount)); save(); render();
     if (game.closed) settlement();
-  } else if (+button.dataset.ticket === head.id) {
-    if (game.selected !== head.menu) { notify("첫 손님이 주문한 메뉴는 " + menus[head.menu].name + "이에요."); return; }
-    if (!prepareStep(game, head.id, +button.dataset.step)) {
-      notify("먼저 ‘" + menus[head.menu].steps[game.kitchen?.step ?? 0] + "’ 단계를 진행하세요."); return;
+  } else {
+    const ticket = +button.dataset.ticket, order = game.queue.find(q => q.id === ticket);
+    const k = game.stations.find(k => k?.ticket === ticket);
+    if (!k || !order) return;
+    if (!prepareStep(game, ticket, +button.dataset.step)) {
+      const next = menus[order.menu].steps[k.step];
+      if (next) notify("먼저 ‘" + next + "’ 단계를 진행하세요.");
+      return;
     }
     tone(410); save(); render();
   }
 });
-$("menu-shelf").onclick = e => {
-  const btn = e.target.closest("[data-menu]");
-  if (btn) { sync(); cookbook(+btn.dataset.menu); }
-};
 $("manage").onclick = e => {
   const btn = e.target.closest("[data-buy]");
   if (!btn || btn.disabled) return;
   const u = upgrades.find(v => v.key === btn.dataset.buy);
-  if (!u || game[u.key] >= u.max || game.kitchen || game.balance < cost(u)) return;
-  game.balance -= cost(u); game[u.key]++; save(); render(); tone(750);
-  notify(u.key === "speed" ? equipment[game.speed] + " 설치 완료!" : u.name + " 완료!");
+  if (!u || game[u.key] >= u.max || game.stations.some(Boolean) || game.balance < cost(u)) return;
+  game.balance -= cost(u); game[u.key]++;
+  if (game.stations.length < stationCount(game)) game.stations.push(null);
+  save(); render(); tone(750);
+  notify(u.key === "speed" && game.speed === 1 ? "두 번째 조리대를 설치했어요!" : u.name + " 개선 완료!");
 };
 document.querySelectorAll("i[data-icon]").forEach(el => el.innerHTML = icon(el.dataset.icon));
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => changePage(b.dataset.page));
