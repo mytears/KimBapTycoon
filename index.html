@@ -25,14 +25,17 @@
       <section id="play" aria-label="가게 영업">
         <div class="storefront">
           <div class="scene" id="scene">
-            <img class="shop" src="assets/art/storefront.webp" alt="저녁 불빛이 켜진 별밤분식의 주방과 골목">
+            <img id="shop-image" class="shop" src="assets/art/storefront-morning.webp" alt="아침의 별밤분식과 골목">
             <div class="scene-badges"><span id="open-sign" class="open-sign">영업 중</span><span class="branch" id="branch-name">별밤 1호점</span></div>
+            <span class="scene-period" id="scene-period"></span>
             <div id="equipment"></div>
             <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
+            <div id="reaction" class="reaction" aria-hidden="true" hidden></div>
           </div>
           <div class="hud">
-            <div class="shift"><i data-icon="moon"></i><b id="day">1일차</b><span id="time">18:00</span></div>
-            <div class="daily-count"><i data-icon="ticket"></i><span>판매</span><b id="served">0 / 9</b></div>
+            <div class="shift"><i id="shift-icon"></i><b id="day">1일차</b><span id="time">07:00</span></div>
+            <div class="daily-count"><i data-icon="ticket"></i><span>판매</span><b id="served">0건</b></div>
+            <div class="grade" aria-label="가게 평점"><i aria-hidden="true">★</i><b id="rating">—</b></div>
             <div class="wallet"><i data-icon="coin"></i><span>보유 자금</span><b id="balance">10,000원</b></div>
           </div>
         </div>

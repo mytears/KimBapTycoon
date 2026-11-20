@@ -127,3 +127,18 @@ dialog{padding:0;color:var(--paper);background:#252633;border:1px solid #5b515a;
   .loaded-station .recipe{margin-top:3px;min-height:48px}
   .loaded-station .prep-heading{margin:4px 0}
 }
+.scene-period{position:absolute;top:13px;right:14px;padding:5px 9px;border:1px solid #77707a88;border-radius:5px;background:#191c27ed;color:#ffe4b4;font-size:12px;line-height:1.35}
+.hud .grade{color:var(--gold);gap:4px}.grade b{font-variant-numeric:tabular-nums}
+.heat{white-space:nowrap}.heat b{color:var(--gold);font-variant-numeric:tabular-nums}.heat.urgent,.heat.urgent b{color:#ff9b84}
+.burnt .plated img{filter:grayscale(1) sepia(.45) brightness(.4);opacity:.85}
+.burnt .stage-label,.burnt .prep-heading small{color:#ffac94}
+.burnt .primary.ready:not(:disabled){background:#604044;border-color:#93615a;color:#ffddc4}
+.remake{display:block;width:100%;margin-top:5px;padding:7px;border:1px solid #72654e;border-radius:6px;color:var(--gold);background:#363036;font-size:12px}
+.stove.smoking:after{content:"";position:absolute;bottom:70%;left:43%;width:15%;height:38%;background:#51494ed6;border-radius:48%;filter:blur(2px);animation:steam 1.4s ease-out infinite}
+.reaction{position:absolute;z-index:3;left:40%;bottom:45%;display:flex;align-items:center;gap:6px;padding:4px 8px 4px 4px;border:1px solid #83684c;border-radius:7px;background:#ffebc9;color:#483326;font-size:12px;box-shadow:0 2px 6px #221b2070}
+.reaction .portrait{width:28px;height:29px}.reaction b{color:#885321}.reaction.angry{color:#722f28;background:#ffd8c9;border-color:#ae5549}
+@media(max-width:640px){
+  .scene-period{top:6px;right:6px;font-size:9px;padding:3px 6px}
+  .hud{gap:7px}.hud .daily-count{padding-left:6px}
+  .reaction{left:30%;gap:4px;font-size:10px}.reaction .portrait{width:20px;height:22px}
+}
