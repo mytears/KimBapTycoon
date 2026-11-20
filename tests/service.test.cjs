@@ -136,9 +136,44 @@ test("old shifts keep money, review-free sales and remaining guest and recipe ti
   old.queue[0].entered = 190000; old.queue[0].expires = 250000; old.stations[0].finish = 200900;
   delete old.stations[0].burnAt; delete old.stations[0].burnt;
   const s = e.restore(old);
-  assert.equal(s.version, 4); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
+  assert.equal(s.version, 5); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
+  assert.equal(s.staff, 0);
   assert.equal(s.reviewCount, 0);
   assert.equal(s.queue[0].expires - s.elapsed, 50000);
   assert.equal(s.stations[0].finish - s.elapsed, 900);
   assert.equal(s.stations[0].burnAt - s.elapsed, e.burnDelay);
+});
+
+test("an employee speeds up each recipe step on every stove while keeping the burn deadline", () => {
+  const e = engine(), s = e.fresh();
+  s.speed = 1; s.staff = 1; s.stations.push(null);
+  e.advance(s, s.nextArrival);
+  e.advance(s, s.nextArrival - s.elapsed);
+  for (const [slot, order] of s.queue.entries()) {
+    assert.ok(e.placeDish(s, slot, order.menu));
+    assert.ok(Math.abs(s.stations[slot].finish - s.elapsed - 1100 / 1.5) < 0.001);
+    assert.equal(s.stations[slot].burnAt - s.elapsed, e.burnDelay);
+  }
+  e.advance(s, e.stepDuration(s));
+  for (const [slot, order] of s.queue.entries()) {
+    assert.ok(e.prepareStep(s, order.id, 1));
+    assert.ok(Math.abs(s.stations[slot].finish - s.elapsed - 1100 / 1.5) < 0.001);
+  }
+});
+
+test("old branch owners get one employee and keep past earnings without a new closing bonus", () => {
+  const e = engine(), old = withOrder(e);
+  old.version = 4; old.branches = 3; delete old.staff;
+  old.history.push({ day: 1, sales: 25000, bonus: 10000 });
+  const burnAt = old.stations[0].burnAt;
+  const s = e.restore(old);
+  assert.equal(s.staff, 1);
+  assert.equal(s.stations[0].finish - s.elapsed, 1000);
+  assert.equal(s.stations[0].burnAt, burnAt);
+  assert.equal(e.restore(JSON.parse(JSON.stringify(s))).stations[0].finish, s.stations[0].finish);
+  e.advance(s, e.shiftDuration - s.elapsed);
+  e.settleDay(s);
+  assert.equal(s.balance, 10000);
+  assert.equal(s.staff, 1);
+  assert.equal(s.history[0].bonus, 10000);
 });

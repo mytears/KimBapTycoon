@@ -21,7 +21,8 @@ const tempers = {
 const equipment = ["휴대용 가스레인지", "스테인리스 2구 레인지", "황동 조리 스테이션"];
 const capacity = 5;
 const stationCount = s => s.speed > 0 ? 2 : 1;
-const stepDuration = s => 1500 - 400 * s.speed;
+const staffSpeed = s => s.staff ? 1.5 : 1;
+const stepDuration = s => (1500 - 400 * s.speed) / staffSpeed(s);
 const openMinute = 7 * 60;
 const closeMinute = 22 * 60;
 const shiftDuration = 180_000;
@@ -98,11 +99,10 @@ function startDay(s) {
   return s;
 }
 function fresh() {
-  return startDay({ version: 4, day: 1, balance: 10000, total: 0, lastTicket: 0,
-    branches: 1, speed: 0, quality: 0, history: [], sound: false });
+  return startDay({ version: 5, day: 1, balance: 10000, total: 0, lastTicket: 0,
+    staff: 0, speed: 0, quality: 0, history: [], sound: false });
 }
 const salePrice = (s, menu) => menus[menu].price + s.quality * 500;
-const branchBonus = s => (s.branches - 1) * 5000;
 
 function removeOrder(s, order) {
   const wasFull = s.queue.length === capacity;
@@ -201,17 +201,15 @@ function serve(s, ticket) {
 
 function settleDay(s) {
   if (!s.closed) return;
-  const bonus = branchBonus(s);
-  s.history.push({ day: s.day, sales: s.sales, served: s.served, missed: s.missed, bonus, arrived: s.arrived,
+  s.history.push({ day: s.day, sales: s.sales, served: s.served, missed: s.missed, arrived: s.arrived,
     reviewCount: s.reviewCount, reviewStars: s.reviewStars, burntServed: s.burntServed, unservedAtClose: s.unservedAtClose });
-  s.balance += bonus;
   s.day++;
   startDay(s);
 }
 
 function restore(raw) {
   if (!raw || !Number.isInteger(raw.day) || raw.day < 1 || !Array.isArray(raw.history)) return fresh();
-  if ([2, 3, 4].includes(raw.version)) {
+  if ([2, 3, 4, 5].includes(raw.version)) {
     if (!Array.isArray(raw.queue) || raw.queue.length > (raw.version === 2 ? 6 : capacity) || !Array.isArray(raw.deck) ||
         raw.deck.length !== menus.length || !raw.deck.every(i => menus[i]) ||
         !raw.queue.every(q => q && menus[q.menu] && guests[q.guest] && tempers[q.temper] &&
@@ -245,13 +243,25 @@ function restore(raw) {
       Object.assign(raw, emptyReviewStats(), { version: 4, crowd: "usual", elapsed });
       scheduleArrival(raw);
     }
+    if (raw.version === 4) {
+      // Give owners of the retired branch upgrade an employee and keep their sales history.
+      raw.staff = raw.branches > 1 ? 1 : 0;
+      for (const station of raw.stations) {
+        if (raw.staff && station?.finish != null) {
+          station.finish = raw.elapsed + (station.finish - raw.elapsed) / staffSpeed(raw);
+        }
+      }
+      delete raw.branches;
+      raw.version = 5;
+    }
     return raw;
   }
   // Keep the original shop economy and honor an order already cooking or ready.
   const legacySequence = [0, 1, 2, 0, 2, 1, 1, 0, 2, 1, 0];
   const s = fresh();
-  for (const key of ["day", "balance", "total", "branches", "speed", "quality", "sales", "served", "sound"])
+  for (const key of ["day", "balance", "total", "speed", "quality", "sales", "served", "sound"])
     if (raw[key] !== undefined) s[key] = raw[key];
+  s.staff = raw.branches > 1 ? 1 : 0;
   s.history = raw.history.map(entry => ({ ...entry, served: 8, missed: 0 }));
   s.queue = [];
   s.stations = Array(stationCount(s)).fill(null);
@@ -269,7 +279,8 @@ function restore(raw) {
     if (raw.phase === "ready" || raw.phase === "cooking") {
       const remaining = Math.max(0, (raw.end || 0) - Date.now());
       const done = raw.phase === "ready" || !remaining;
-      s.stations[0] = { ...startCooking(s, s.queue[0].id), step: done ? 3 : 2, finish: done ? null : remaining };
+      s.stations[0] = { ...startCooking(s, s.queue[0].id), step: done ? 3 : 2,
+        finish: done ? null : remaining / staffSpeed(s) };
     }
   }
   return s;

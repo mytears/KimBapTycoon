@@ -88,7 +88,7 @@ function renderScene() {
   paint($("equipment"), game.stations.map((k, slot) => '<div class="stove' + (k?.burnt ? ' smoking' : k?.finish != null ? ' cooking' : '') +
     '"><img src="' + art("stove", game.speed) + '" alt="' + (slot + 1) + '번 조리대 · ' + equipment[game.speed] + '"></div>').join(""));
   $("scene").dataset.level = game.speed;
-  $("branch-name").textContent = "별밤 " + game.branches + "호점";
+  $("staff-sign").hidden = !game.staff || game.closed;
   $("open-sign").textContent = game.closed ? "영업 마감" : "영업 중";
   $("open-sign").classList.toggle("closed", game.closed);
 }
@@ -187,9 +187,9 @@ function refreshTimers() {
 const upgrades = [
   { key: "speed", name: "조리 장비", max: 2, base: 12000, icon: "stove" },
   { key: "quality", name: "메뉴 연구", max: 4, base: 15000, icon: "menu" },
-  { key: "branches", name: "분점 열기", max: 5, base: 60000, icon: "store" }
+  { key: "staff", name: "직원 채용", max: 1, base: 30000, icon: "people" }
 ];
-const cost = u => u.base * (game[u.key] + (u.key === "branches" ? 0 : 1));
+const cost = u => u.base * (game[u.key] + 1);
 const row = (label, value) => '<div class="stat"><span>' + label + '</span><b>' + value + '</b></div>';
 const ratingText = s => s.reviewCount ? (s.reviewStars / s.reviewCount).toFixed(1) + " / 5" : "평가 없음";
 function dayStats(s) {
@@ -200,24 +200,26 @@ function dayStats(s) {
 function renderManage() {
   const busy = game.stations.some(Boolean);
   const descriptions = [game.speed === 0 ? '조리대 1대 추가 · 두 주문 동시 조리 · 각 단계 0.4초 단축' :
-    equipment[Math.min(2, game.speed + 1)] + ' · 조리대 2대 · 각 단계 0.4초 단축', '모든 메뉴 판매가 500원 상승', '분점마다 정산 수익 5,000원 추가'];
+    equipment[Math.min(2, game.speed + 1)] + ' · 조리대 2대 · 각 단계 0.4초 단축', '모든 메뉴 판매가 500원 상승', '모든 조리대의 조리 속도 1.5배'];
   $("manage").innerHTML = '<h2>' + icon("upgrade") + '가게 관리</h2><div class="summary">' +
-    row("운영 중인 매장", game.branches + "곳") + row("보유 자금", money(game.balance)) + '</div><h3>가게 개선</h3>' +
+    row("조리 직원", game.staff ? "1명" : "미채용") + row("보유 자금", money(game.balance)) + '</div><h3>가게 개선</h3>' +
     upgrades.map((u, i) => {
       const max = game[u.key] >= u.max;
+      const level = u.key === "staff" ? "" : ' <em>Lv.' + game[u.key] + '</em>';
+      const done = u.key === "staff" ? "채용 완료" : "개선 완료";
       return '<div class="item"><div class="upgrade-art">' + (i === 0 ? '<img src="' + art("stove", Math.min(2, game.speed + 1)) + '" alt="">' : icon(u.icon)) +
-        '</div><div class="item-copy"><b>' + u.name + ' <em>Lv.' + game[u.key] + '</em></b><small>' + descriptions[i] +
+        '</div><div class="item-copy"><b>' + u.name + level + '</b><small>' + descriptions[i] +
         '</small></div><button class="buy" data-buy="' + u.key + '" ' + (max || busy || game.balance < cost(u) ? "disabled" : "") + '>' +
-        (max ? "개선 완료" : money(cost(u))) + '</button></div>';
+        (max ? done : money(cost(u))) + '</button></div>';
     }).join("") + (busy ? '<p>조리 중인 주문을 마치면 개선할 수 있어요.</p>' : '');
 }
 function renderJournal() {
   $("journal").innerHTML = '<h2>' + icon("book") + '영업 일지</h2><h3>' + game.day + '일차 장부</h3><div class="summary">' +
     row("방문한 손님", game.arrived + "명") + dayStats(game) + row("누적 판매", game.total + "건") + '</div><h3>지난 영업</h3>' +
     (game.history.length ? game.history.slice().reverse().map(d => '<div class="item"><div class="item-copy"><b>' + d.day + '일차</b><small>판매 ' +
-      d.served + '건 · 시간 초과 ' + d.missed + '건 · 분점 수익 ' + money(d.bonus) + '</small>' +
+      d.served + '건 · 시간 초과 ' + d.missed + '건' + (d.bonus ? ' · 분점 수익 ' + money(d.bonus) : '') + '</small>' +
       (d.reviewCount === undefined ? '' : '<small>평점 ' + ratingText(d) + ' (' + d.reviewCount + '건) · 탄 음식 ' + d.burntServed +
-        '건 · 마감 미제공 ' + d.unservedAtClose + '건</small>') + '</div><strong>' + money(d.sales + d.bonus) + '</strong></div>').join("")
+        '건 · 마감 미제공 ' + d.unservedAtClose + '건</small>') + '</div><strong>' + money(d.sales + (d.bonus || 0)) + '</strong></div>').join("")
       : '<p>하루를 정산하면 영업 기록이 남아요.</p>');
 }
 function menuTiles(selected = null) {
@@ -279,7 +281,7 @@ function dialog(title, html, kind = "") {
 }
 function settlement() {
   dialog(game.day + "일차 영업 마감", '<div class="summary">' + row("방문한 손님", game.arrived + "명") +
-    dayStats(game) + row("분점 수익", money(branchBonus(game))) +
+    dayStats(game) +
     '</div><button class="primary" id="next-day">다음 날 영업 시작 ' + icon("chevron") + '</button>');
   $("next-day").onclick = () => { if (!game.closed) return; settleDay(game); save(); $("modal").close(); render(); notify(game.day + "일차 영업을 시작해요."); };
 }
@@ -365,7 +367,9 @@ $("manage").onclick = e => {
   game.balance -= cost(u); game[u.key]++;
   if (game.stations.length < stationCount(game)) game.stations.push(null);
   save(); render(); tone(750);
-  notify(u.key === "speed" && game.speed === 1 ? "두 번째 조리대를 설치했어요!" : u.name + " 개선 완료!");
+  if (u.key === "staff") notify("직원을 채용했어요. 조리 속도가 1.5배 빨라져요!");
+  else if (u.key === "speed" && game.speed === 1) notify("두 번째 조리대를 설치했어요!");
+  else notify(u.name + " 개선 완료!");
 };
 document.querySelectorAll("i[data-icon]").forEach(el => el.innerHTML = icon(el.dataset.icon));
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => changePage(b.dataset.page));
