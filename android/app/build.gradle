@@ -1,0 +1,25 @@
+plugins {
+    id 'com.android.application' version '8.13.0'
+}
+
+def webAssets = tasks.register('syncWebAssets', Sync) {
+    from(rootProject.projectDir.parentFile) {
+        include 'index.html', 'style.css', 'game.js', 'assets/**'
+    }
+    into layout.buildDirectory.dir('generated/webAssets')
+}
+
+android {
+    namespace 'com.byeolbam.bunsik'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.byeolbam.bunsik'
+        minSdk 26
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+    sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/webAssets'))
+}
+
+tasks.named('preBuild').configure { dependsOn webAssets }

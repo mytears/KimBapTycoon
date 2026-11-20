@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#201e30">
+  <title>별밤분식 · 분식집 타이쿤</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="style.css">
+  <script src="game.js" defer></script>
+</head>
+<body>
+  <main class="console">
+    <header class="masthead">
+      <div class="brand"><img src="assets/logo.png" alt="" width="49" height="43"><div><h1>별밤<span>분식</span></h1><p>BUNSIK TYCOON</p></div></div>
+      <div class="tools"><button id="sound" class="icon-button" aria-label="효과음 켜기" title="효과음 켜기"><i data-icon="muted"></i></button><button id="settings" class="icon-button" aria-label="설정" title="설정"><i data-icon="gear"></i></button></div>
+    </header>
+    <div class="hud"><div><i class="gold" data-icon="moon"></i><b id="day">1일차</b></div><div class="clock"><i data-icon="clock"></i><span id="time">18:00</span></div><div class="wallet"><i data-icon="coin"></i><b id="balance">10,000</b><span>원</span></div></div>
+    <section id="play" aria-label="가게 영업">
+      <div class="scene"><img class="shop" src="assets/shop.webp" alt="붉은 줄무늬 차양 아래 주인이 손님을 기다리는 밤의 별밤분식"><span id="open-sign" class="open-sign"><span></span>영업 중</span><span class="branch"><i data-icon="pin"></i><span id="branch-name">별밤 1호점</span></span></div>
+      <section class="workspace">
+        <div class="section-head"><h2><i class="lavender" data-icon="ticket"></i>손님 주문</h2><span class="serial" id="serial">ORDER #001</span></div>
+        <div class="ticket">
+          <div class="portrait"><img id="guest" src="assets/guest0.png" alt=""></div>
+          <div class="request"><small id="guest-name">단골 학생</small><strong id="order-line">야채김밥 한 줄 주세요!</strong></div>
+          <div class="price"><small>판매가</small><b id="order-price">3,000원</b></div>
+        </div>
+        <div class="section-head kitchen-head"><h2><i class="peach" data-icon="pan"></i>조리대</h2><span class="hint" id="kitchen-hint">메뉴를 선택하세요</span></div>
+        <div id="foods" class="foods" role="group" aria-label="조리할 메뉴"></div>
+        <button class="main-action" id="cook"><i data-icon="play"></i><span>조리 시작</span></button>
+      </section>
+    </section>
+    <section id="manage" class="subpage" aria-label="가게 관리" hidden></section>
+    <section id="journal" class="subpage" aria-label="영업 일지" hidden></section>
+    <nav aria-label="게임 화면"><button data-page="play" aria-current="page"><i data-icon="store"></i>영업</button><button data-page="manage"><i data-icon="upgrade"></i>가게 관리</button><button data-page="journal"><i data-icon="book"></i>영업 일지</button></nav>
+  </main>
+  <dialog id="modal"><div class="dialog-inner"><div class="dialog-top"><h2 id="dialog-title"></h2><button id="dismiss" class="icon-button" aria-label="닫기"><i data-icon="close"></i></button></div><div id="dialog-body"></div></div></dialog>
+  <div id="notice" class="notice" role="status" aria-live="polite"></div>
+</body>
+</html>
