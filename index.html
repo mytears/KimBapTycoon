@@ -25,11 +25,13 @@
       <section id="play" aria-label="가게 영업">
         <div class="storefront">
           <div class="scene" id="scene">
-            <img id="shop-image" class="shop" src="assets/art/storefront-morning.webp" alt="아침의 별밤분식과 골목">
+            <div class="scene-world">
+              <img id="shop-image" class="shop" src="assets/art/storefront-morning.webp" alt="아침의 별밤분식과 골목">
+              <div id="equipment"></div>
+              <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
+            </div>
             <div class="scene-badges"><span id="open-sign" class="open-sign">영업 중</span><span class="staff-sign" id="staff-sign" hidden>직원 근무 중</span></div>
             <span class="scene-period" id="scene-period"></span>
-            <div id="equipment"></div>
-            <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
             <div id="reaction" class="reaction" aria-hidden="true" hidden></div>
           </div>
           <div class="hud">

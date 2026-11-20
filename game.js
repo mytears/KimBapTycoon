@@ -129,11 +129,14 @@ function stationMarkup(k, slot) {
       '" ' + (i < step || busy ? "disabled" : "") + '><span class="step-num">' + (i < step ? icon("check") : "0" + (i + 1)) + '</span><b>' +
       name + '</b>' + (i === step ? icon(busy ? "timer" : "chevron") : "") + '</button>').join("") + '</div>';
   const heat = k.burnt ? '평점 1점 · 0원' : '<span class="heat" data-heat="' + k.ticket + '">타기까지 <b></b></span>';
+  const actions = k.burnt
+    ? '<div class="burnt-actions">' + controls + '<button class="remake" data-remake="' + order.id + '">다시 조리하기</button></div>'
+    : controls;
   return '<section class="loaded-station' + (k.burnt ? ' burnt' : '') + '" aria-label="' + title + '"><div class="station-title">' + title + '<small>NO. ' +
     serial(order.id) + '</small></div><div class="recipe"><div class="plated">' + dish(order.menu) + '</div><div><small>' + guests[order.guest] + '</small><h3>' +
     menu.name + '</h3><span class="stage-label">' + (k.burnt ? "음식이 탔어요" : ready ? "조리 완료" : (step + 1) + ' / ' + menu.steps.length + '단계') +
     '</span></div></div><div class="prep-heading"><h3>' + (ready ? (first ? "서빙 가능" : "앞 주문 대기") : busy ? "조리 중…" : "조리 순서") +
-    '</h3><small>' + heat + '</small></div>' + controls + (k.burnt ? '<button class="remake" data-remake="' + order.id + '">다시 조리하기</button>' : '') + '</section>';
+    '</h3><small>' + heat + '</small></div>' + actions + '</section>';
 }
 function renderKitchen() {
   if (game.closed) {
@@ -270,7 +273,7 @@ function changePage(next) {
   document.querySelectorAll("nav button").forEach(b => {
     if (b.dataset.page === next) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
-  setClock(); save(); render(); window.scrollTo(0, 0);
+  setClock(); save(); render(); document.querySelector("main").scrollTop = 0; window.scrollTo(0, 0);
 }
 function dialog(title, html, kind = "") {
   $("dialog-title").textContent = title;
