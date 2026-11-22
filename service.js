@@ -21,24 +21,29 @@ const menus = [
     timing: { action: "밥 뒤집기", from: 35 } }
 ];
 const guests = ["단골 학생", "퇴근길 회사원", "동네 책방 주인", "자전거 배달원", "시장 단골 할머니", "이웃 빵집 사장",
-  "꽃집 사장", "골목 사진가", "퇴근길 간호사", "택시 기사", "바이올린 연주자", "낚시꾼 할아버지"];
+  "꽃집 사장", "골목 사진가", "퇴근길 간호사", "택시 기사", "바이올린 연주자", "낚시꾼 할아버지",
+  "도예가", "스케이트보더", "우편집배원", "태권도 선수", "과일 가게 사장", "첼리스트",
+  "버스 기사", "캠핑 여행자", "동네 파티시에"];
 const tempers = {
   regular: { name: "보통", seconds: 40 },
   hasty: { name: "성미 급함", seconds: 30 },
   easy: { name: "느긋함", seconds: 50 }
 };
 const waitDeadline = (temper, entered) => entered + tempers[temper].seconds * 1000;
-const equipment = ["휴대용 가스레인지", "스테인리스 2구 레인지", "황동 조리 스테이션"];
+const equipment = ["휴대용 가스레인지", "스테인리스 레인지", "황동 레인지"];
+const stoveLimit = 2;
+const installCost = 12000;
+const stoveUpgradeCost = level => (level + 1) * 12000;
+const interiors = ["나무", "벽돌", "대리석"];
 const capacity = 5;
-const stationCount = s => s.speed > 0 ? 2 : 1;
 const equipmentStepReduction = 250;
 const staffStepReduction = 500;
-const stepDuration = s => 2500 - equipmentStepReduction * s.speed - (s.staff ? staffStepReduction : 0);
+const stepDuration = (s, slot = 0) => 2500 - equipmentStepReduction * s.stoveLevels[slot] - (s.staff ? staffStepReduction : 0);
 const menuPriceBoost = 500;
 const promotionBoost = 10;
 const hospitalityBonus = 2;
 const upgrades = [
-  { key: "speed", name: "조리 장비", max: 2, base: 12000, icon: "stove" },
+  { key: "interior", name: "가게 인테리어", max: 2, base: 50000, icon: "store" },
   { key: "quality", name: "메뉴 연구", max: 6, base: 15000, icon: "menu" },
   { key: "staff", name: "직원 채용", max: 1, base: 30000, icon: "people" },
   { key: "promotion", name: "동네 홍보", max: 3, base: 20000, icon: "store" },
@@ -48,16 +53,24 @@ const upgradeCost = (s, upgrade) => upgrade.base * (s[upgrade.key] + 1);
 const shopStyles = {
   awning: [
     { id: "red", name: "앵두빛", cost: 0 },
-    { id: "mugwort", name: "쑥빛", cost: 4000 },
-    { id: "indigo", name: "쪽빛", cost: 6000 }
+    { id: "mugwort", name: "쑥빛", cost: 40000 },
+    { id: "indigo", name: "쪽빛", cost: 60000 }
   ],
   sign: [
     { id: "painted", name: "손글씨", cost: 0 },
-    { id: "enamel", name: "청록 법랑", cost: 5000 },
-    { id: "neon", name: "달빛 네온", cost: 9000 }
+    { id: "enamel", name: "청록 법랑", cost: 50000 },
+    { id: "neon", name: "달빛 네온", cost: 90000 }
   ]
 };
-const defaultDecor = () => ({ awning: "red", sign: "painted", title: "", owned: ["red", "painted"] });
+const defaultName = "별밤분식";
+const defaultDecor = () => ({ name: defaultName, awning: "red", sign: "painted", title: "", owned: ["red", "painted"] });
+const nameSegmenter = typeof Intl.Segmenter === "function" ? new Intl.Segmenter("ko") : null;
+function shopName(value) {
+  if (typeof value !== "string") return "";
+  const name = value.trim().normalize("NFC");
+  const letters = nameSegmenter ? nameSegmenter.segment(name) : name;
+  return Array.from(letters).length <= 4 && !/[\u0000-\u001f\u007f]/u.test(name) ? name : "";
+}
 const arrivalFactor = s => (100 - s.promotion * promotionBoost) / 100;
 const openMinute = 7 * 60;
 const closeMinute = 22 * 60;
@@ -179,28 +192,45 @@ function startDay(s) {
     [deck[index], deck[1]] = [deck[1], deck[index]];
   }
   Object.assign(s, emptyReviewStats(), { served: 0, missed: 0, sales: 0, elapsed: 0, arrived: 0,
-    queue: [], returning: null, stations: Array(stationCount(s)).fill(null),
+    queue: [], returning: null, stations: s.stoveLevels.map(() => null),
     closed: false, crowd: pick(["quiet", "usual", "usual", "busy"]), deck,
     goal: { id: goalId, progress: 0 } });
   scheduleArrival(s);
   return s;
 }
 function fresh() {
-  return startDay({ version: 11, day: 1, balance: 10000, total: 0, lastTicket: 0,
-    staff: 0, speed: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false,
+  return startDay({ version: 12, day: 1, balance: 10000, total: 0, lastTicket: 0,
+    staff: 0, stoveLevels: [0], interior: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false,
     records: emptyAchievementRecords(), celebration: null, decor: defaultDecor() });
 }
 const salePrice = (s, menu) => menus[menu].price + s.quality * menuPriceBoost;
 
+function installStove(s) {
+  if (s.stoveLevels.length >= stoveLimit || s.balance < installCost) return false;
+  s.balance -= installCost;
+  s.stoveLevels.push(0);
+  s.stations.push(null);
+  return true;
+}
+
+function upgradeStove(s, slot) {
+  const level = s.stoveLevels[slot];
+  if (!Number.isInteger(slot) || level === undefined || level >= equipment.length - 1 || s.stations[slot]) return false;
+  const cost = stoveUpgradeCost(level);
+  if (s.balance < cost) return false;
+  s.balance -= cost;
+  s.stoveLevels[slot]++;
+  return true;
+}
+
 function buyUpgrade(s, key) {
   const upgrade = upgrades.find(item => item.key === key);
-  if (!upgrade || s[key] >= upgrade.max || s.stations.some(Boolean)) return false;
+  if (!upgrade || s[key] >= upgrade.max || (key !== "interior" && s.stations.some(Boolean))) return false;
   const cost = upgradeCost(s, upgrade);
   if (s.balance < cost) return false;
   const previousArrivalFactor = arrivalFactor(s);
   s.balance -= cost;
   s[key]++;
-  if (s.stations.length < stationCount(s)) s.stations.push(null);
   if (key === "promotion") {
     if (s.nextArrival === null) scheduleArrival(s);
     else s.nextArrival = s.elapsed + Math.round((s.nextArrival - s.elapsed) * arrivalFactor(s) / previousArrivalFactor);
@@ -276,23 +306,24 @@ function placeDish(s, slot, menu) {
   if (s.stations[slot] !== null || s.closed) return false;
   const order = pendingOrders(s).find(q => q.menu === menu);
   if (!order) return false;
-  s.stations[slot] = startCooking(s, order.id);
+  s.stations[slot] = startCooking(s, order.id, slot);
   return true;
 }
-function startCooking(s, ticket) {
-  return { ticket, step: 0, finish: s.elapsed + stepDuration(s), burnAt: s.elapsed + burnDelay, burnt: false };
+function startCooking(s, ticket, slot = 0) {
+  return { ticket, step: 0, finish: s.elapsed + stepDuration(s, slot), burnAt: s.elapsed + burnDelay, burnt: false };
 }
 function remakeDish(s, ticket) {
   const slot = s.stations.findIndex(k => k?.ticket === ticket && k.burnt);
   if (slot < 0) return false;
-  s.stations[slot] = startCooking(s, ticket);
+  s.stations[slot] = startCooking(s, ticket, slot);
   return true;
 }
 function prepareStep(s, ticket, step) {
-  const k = s.stations.find(k => k?.ticket === ticket);
+  const slot = s.stations.findIndex(k => k?.ticket === ticket);
+  const k = s.stations[slot];
   const order = s.queue.find(q => q.id === ticket);
   if (!k || k.burnt || !order || k.step !== step || k.finish != null || !menus[order.menu].steps[step]) return false;
-  k.finish = s.elapsed + stepDuration(s);
+  k.finish = s.elapsed + stepDuration(s, slot);
   if (step === 1) k.timingStarted = s.elapsed;
   return true;
 }
@@ -343,6 +374,7 @@ function earnedTitles(s) {
 }
 
 function decorPrice(s, choice) {
+  if (!shopName(choice.name ?? s.decor.name)) return null;
   if (choice.title !== "" && !earnedTitles(s).some(a => a.id === choice.title)) return null;
   let cost = 0;
   for (const [group, options] of Object.entries(shopStyles)) {
@@ -358,13 +390,14 @@ function applyDecor(s, choice) {
   if (cost === null || cost > s.balance) return false;
   const { awning, sign, title } = choice;
   s.balance -= cost;
-  s.decor = { awning, sign, title, owned: [...new Set([...s.decor.owned, awning, sign])] };
+  s.decor = { name: shopName(choice.name ?? s.decor.name), awning, sign, title, owned: [...new Set([...s.decor.owned, awning, sign])] };
   return true;
 }
 
 function restoreDecor(s) {
   const decor = defaultDecor(), saved = s.decor;
   if (!saved) return decor;
+  decor.name = shopName(saved.name) || defaultName;
   for (const [group, options] of Object.entries(shopStyles)) {
     for (const item of options) {
       if (item.cost && Array.isArray(saved.owned) && saved.owned.includes(item.id)) decor.owned.push(item.id);
@@ -429,17 +462,29 @@ function settleDay(s) {
   recordCelebration(s, before);
 }
 
+function legacyStoves(speed) {
+  const level = Number.isInteger(speed) ? Math.max(0, Math.min(2, speed)) : 0;
+  return level ? [level, level] : [0];
+}
 function restore(raw) {
   if (!raw || !Number.isInteger(raw.day) || raw.day < 1 || !Array.isArray(raw.history)) return fresh();
   // Finish steps already in progress using the timing of the original migration.
   const legacyStaffMultiplier = 1.5;
-  if ([2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(raw.version)) {
+  if ([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(raw.version)) {
+    if (raw.version < 12) {
+      raw.stoveLevels = legacyStoves(raw.speed);
+      raw.interior = 0;
+      delete raw.speed;
+    }
+    if (!Array.isArray(raw.stoveLevels) || !raw.stoveLevels.length || raw.stoveLevels.length > stoveLimit ||
+        !raw.stoveLevels.every(level => Number.isInteger(level) && level >= 0 && level < equipment.length)) return fresh();
+    if (!Number.isInteger(raw.interior) || !interiors[raw.interior]) raw.interior = 0;
     if (!Array.isArray(raw.queue) || raw.queue.length > (raw.version === 2 ? 6 : capacity) || !Array.isArray(raw.deck) ||
         raw.deck.length !== menus.length || !raw.deck.every(i => menus[i]) ||
         !raw.queue.every(q => q && menus[q.menu] && guests[q.guest] && tempers[q.temper] &&
           Number.isFinite(q.expires) && q.expires >= raw.elapsed)) return fresh();
     if (raw.version === 2) {
-      raw.stations = Array(stationCount(raw)).fill(null);
+      raw.stations = raw.stoveLevels.map(() => null);
       raw.stations[0] = raw.kitchen ?? null;
       delete raw.kitchen;
       delete raw.selected;
@@ -447,7 +492,7 @@ function restore(raw) {
       if (raw.queue.length === capacity) raw.nextArrival = null;
       raw.version = 3;
     }
-    if (!Array.isArray(raw.stations) || raw.stations.length !== stationCount(raw)) return fresh();
+    if (!Array.isArray(raw.stations) || raw.stations.length !== raw.stoveLevels.length) return fresh();
     if (raw.version === 3) {
       // Older days ended after nine tickets. Rebase every active deadline together
       // to retain the guests' patience and the progress of a running recipe.
@@ -522,19 +567,20 @@ function restore(raw) {
       raw.version = 10;
     }
     raw.decor = restoreDecor(raw);
-    raw.version = 11;
+    raw.version = 12;
     return raw;
   }
   // Keep the original shop economy and honor an order already cooking or ready.
   const legacySequence = [0, 1, 2, 0, 2, 1, 1, 0, 2, 1, 0];
   const s = fresh();
-  for (const key of ["day", "balance", "total", "speed", "quality", "sales", "served", "sound"])
+  for (const key of ["day", "balance", "total", "quality", "sales", "served", "sound"])
     if (raw[key] !== undefined) s[key] = raw[key];
   s.staff = raw.branches > 1 ? 1 : 0;
   s.goal = raw.phase === "closed" ? null : { id: "fast", progress: 0 };
   s.history = raw.history.map(entry => ({ ...entry, served: 8, missed: 0 }));
   s.queue = [];
-  s.stations = Array(stationCount(s)).fill(null);
+  s.stoveLevels = legacyStoves(raw.speed);
+  s.stations = s.stoveLevels.map(() => null);
   s.lastTicket = s.total;
   s.arrived = s.served;
   if (raw.phase === "closed") {

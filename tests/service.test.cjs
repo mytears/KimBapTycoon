@@ -14,7 +14,7 @@ function engine(random = () => .5) {
         clockMinutes, daypartAt, burnDelay, stepDuration, shiftDuration, scheduleArrival,
         tryTiming, timingProgress, timingTip, dumplingMenu, menus, buyUpgrade, salePrice,
         achievements, achievementCounts, achievementProgress, goalReward, dailyGoalReward,
-        earnedTitles, decorPrice, applyDecor })
+        earnedTitles, decorPrice, applyDecor, installStove, upgradeStove, shopName, guests })
   `, { Math: math });
 }
 function withOrder(e) {
@@ -59,8 +59,10 @@ test("the clock and four backgrounds follow play time, including quiet gaps and 
 test("decorating buys the whole selection once and keeps purchases through closing and reload", () => {
   const e = engine(), s = e.fresh();
   const basic = { ...s.decor };
+  s.balance = 91000;
   const choice = { awning: "mugwort", sign: "enamel", title: "" };
-  assert.equal(e.decorPrice(s, choice), 9000);
+  assert.equal(e.decorPrice(s, choice), 90000);
+  assert.equal(e.decorPrice(s, { ...choice, awning: "indigo", sign: "neon" }), 150000);
   const before = JSON.stringify(s);
   assert.equal(e.applyDecor(s, { ...choice, sign: "neon" }), false);
   assert.equal(e.applyDecor(s, { ...choice, awning: "missing" }), false);
@@ -97,6 +99,45 @@ test("existing achievements unlock wearable titles and older shops keep their ac
   assert.equal(e.restore(saved).decor.title, "ramen-200");
   saved.decor = { awning: "indigo", sign: "missing", title: "goals-999", owned: ["unknown"] };
   assert.deepEqual(JSON.parse(JSON.stringify(e.restore(saved).decor)), JSON.parse(JSON.stringify(e.fresh().decor)));
+});
+
+test("legacy paired stoves keep their levels, purchases, and in-flight timers", () => {
+  const e = engine(), old = withOrder(e);
+  old.version = 11; old.speed = 1; delete old.stoveLevels; delete old.interior;
+  old.stations.push(null);
+  old.decor.owned.push("enamel"); old.decor.sign = "enamel"; delete old.decor.name;
+  const deadline = old.stations[0].finish;
+  const s = e.restore(old);
+  assert.deepEqual(Array.from(s.stoveLevels), [1, 1]);
+  assert.equal(s.stations[0].finish, deadline);
+  assert.equal(s.decor.sign, "enamel");
+  assert.equal(s.decor.name, "별밤분식");
+  assert.equal(e.decorPrice(s, s.decor), 0);
+  assert.equal(e.upgradeStove(s, 1), false);
+  s.balance = 24000;
+  assert.ok(e.upgradeStove(s, 1));
+  assert.equal(e.upgradeStove(s, 1), false);
+  assert.equal(s.balance, 0);
+  assert.equal(s.stations[0].finish, deadline);
+  assert.deepEqual(Array.from(e.restore(JSON.parse(JSON.stringify(s))).stoveLevels), [1, 2]);
+});
+
+test("shop names and sequential interior upgrades survive a day change and reload", () => {
+  const e = engine(), s = e.fresh();
+  assert.equal(new Set(e.guests).size, 21);
+  for (const name of ["", "  ", "다섯글자야"]) assert.equal(e.applyDecor(s, { ...s.decor, name }), false);
+  assert.ok(e.applyDecor(s, { ...s.decor, name: " 달빛김밥 " }));
+  assert.equal(e.shopName("🌙김밥집"), "🌙김밥집");
+  assert.equal(s.balance, 10000);
+  assert.equal(e.buyUpgrade(s, "interior"), false);
+  s.balance = 150000;
+  assert.ok(e.buyUpgrade(s, "interior")); assert.equal(s.interior, 1); assert.equal(s.balance, 100000);
+  assert.ok(e.buyUpgrade(s, "interior")); assert.equal(s.interior, 2); assert.equal(s.balance, 0);
+  assert.equal(e.buyUpgrade(s, "interior"), false);
+  e.advance(s, e.shiftDuration); e.settleDay(s);
+  const reloaded = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.equal(reloaded.interior, 2);
+  assert.equal(reloaded.decor.name, "달빛김밥");
 });
 
 test("daily traffic, meal rushes and jitter affect arrival intervals", () => {
@@ -158,7 +199,7 @@ test("burning wins at precisely 12 seconds, even for finished food; one angry re
 test("ratings use time since arrival, including a remake, while each station has its own burn deadline", () => {
   for (const [roll, expected] of [[.1, 3], [.5, 4], [.9, 5]]) {
     const e = engine(() => roll), s = withOrder(e), head = s.queue[0];
-    s.speed = 1; s.stations.push(null);
+    s.stoveLevels.push(0); s.stations.push(null);
     e.advance(s, s.nextArrival - s.elapsed);
     const next = s.queue[1];
     assert.ok(e.placeDish(s, 1, next.menu));
@@ -188,7 +229,7 @@ test("old shifts keep money and recipe progress and apply new patience to elapse
   old.queue[0].entered = 190000; old.queue[0].expires = 250000; old.stations[0].finish = 200900;
   delete old.stations[0].burnAt; delete old.stations[0].burnt;
   const s = e.restore(old);
-  assert.equal(s.version, 11); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
+  assert.equal(s.version, 12); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
   assert.equal(s.promotion, 0); assert.equal(s.hospitality, 0);
   assert.equal(s.goal.id, "fast"); assert.equal(s.goal.progress, 0);
   assert.equal(s.staff, 0);
@@ -254,20 +295,25 @@ test("an employee speeds up each recipe step on every stove while keeping the bu
   const e = engine(), s = e.fresh();
   assert.equal(e.stepDuration(s), 2500);
   assert.equal(e.stepDuration({ ...s, staff: 1 }), 2000);
-  assert.equal(e.stepDuration({ ...s, speed: 1 }), 2250);
-  assert.equal(e.stepDuration({ ...s, speed: 2, staff: 1 }), 1500);
-  s.speed = 1; s.staff = 1; s.stations.push(null);
+  assert.equal(e.stepDuration({ ...s, stoveLevels: [1] }), 2250);
+  assert.equal(e.stepDuration({ ...s, stoveLevels: [2], staff: 1 }), 1500);
+  s.balance = 100000;
+  assert.ok(e.upgradeStove(s, 0));
+  assert.equal(s.stations.length, 1);
+  assert.ok(e.installStove(s));
+  assert.ok(e.buyUpgrade(s, "staff"));
+  assert.equal(e.installStove(s), false);
   e.advance(s, s.nextArrival);
   e.advance(s, s.nextArrival - s.elapsed);
   for (const [slot, order] of s.queue.entries()) {
     assert.ok(e.placeDish(s, slot, order.menu));
-    assert.equal(s.stations[slot].finish - s.elapsed, 1750);
+    assert.equal(s.stations[slot].finish - s.elapsed, slot === 0 ? 1750 : 2000);
     assert.equal(s.stations[slot].burnAt - s.elapsed, e.burnDelay);
   }
-  e.advance(s, e.stepDuration(s));
+  e.advance(s, e.stepDuration(s, 1));
   for (const [slot, order] of s.queue.entries()) {
     assert.ok(e.prepareStep(s, order.id, 1));
-    assert.equal(s.stations[slot].finish - s.elapsed, 1750);
+    assert.equal(s.stations[slot].finish - s.elapsed, slot === 0 ? 1750 : 2000);
   }
 });
 
@@ -375,7 +421,7 @@ test("service training adds 0.2 stars per level with a five-star cap and keeps b
     e.advance(s, s.nextArrival);
     const order = s.queue[0];
     assert.ok(e.placeDish(s, 0, order.menu));
-    assert.equal(e.buyUpgrade(s, "speed"), false);
+    assert.equal(e.upgradeStove(s, 0), false);
     finish(e, s, order.id);
     e.advance(s, order.entered + 10_100 - s.elapsed);
     assert.equal(e.serve(s, order.id).stars, expected);

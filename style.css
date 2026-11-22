@@ -73,6 +73,29 @@ nav button[aria-current=page]{background:#443634;border-color:#6a5043;color:var(
   text-shadow: 0 .15cqw #142b32;
 }
 .shop-lettering i { font-size: 2.2cqw; color: #f5cd82; }
+.shop-lettering b { overflow: hidden; white-space: nowrap; max-width: 78%; font-weight: inherit; }
+[data-sign="painted"] .shop-lettering {
+  background: linear-gradient(165deg, #eac48e, #ffe3a8 48%, #d5a576);
+  border-color: #754326;
+  box-shadow: inset 0 0 0 .22cqw #ad7644, 0 .22cqw .3cqw #34231d;
+  color: #66351f;
+  text-shadow: 0 .12cqw #fff0b8;
+  font-family: "Galmuri11", var(--font);
+}
+[data-sign="painted"] .shop-lettering i { color: #b66d33; }
+.shop-decor[data-interior="1"] { --finish: url("assets/art/brick.webp"); --tile: 37cqw; }
+.shop-decor[data-interior="2"] { --finish: url("assets/art/marble.webp"); --tile: 55cqw; }
+.counter-finish, .kitchen-wall {
+  position: absolute;
+  background: linear-gradient(115deg, #ffbb5a29, #271c1930 65%), var(--finish) left center / var(--tile) auto;
+  box-shadow: inset 0 .5cqw 1cqw #36251d65, inset 0 -.3cqw .35cqw #261d195c;
+  filter: brightness(var(--interior-light, 1));
+}
+.counter-finish { left: 26.2%; right: 6.5%; top: 67.2%; bottom: 15.2%; }
+.kitchen-wall { left: 73.2%; right: 9.2%; top: 47%; bottom: 37.5%; filter: brightness(calc(var(--interior-light, 1) * .84)); }
+[data-period="storefront"] { --interior-light: .73; }
+[data-period="storefront-evening"] { --interior-light: .85; }
+.staff-sprite { position: absolute; left: 58.8%; bottom: 36%; width: 9.8%; height: 22.4%; object-fit: contain; object-position: center bottom; filter: brightness(var(--interior-light, 1)); }
 [data-sign="neon"] .shop-lettering {
   background: repeating-linear-gradient(0deg, #272137 0 .45cqw, #211d31 .5cqw .6cqw);
   color: #ffe9ee;
@@ -103,7 +126,7 @@ nav button[aria-current=page]{background:#443634;border-color:#6a5043;color:var(
 .shop-plaque svg { width: 1em; height: 1em; }
 .scene-badges{position:absolute;top:13px;left:14px;display:flex;align-items:center;gap:8px;z-index:3}
 .open-sign,.staff-sign{display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:12px;color:#e8e4d4;line-height:1.35;background:#191c27ed;border:1px solid #77707a88;border-radius:5px;box-shadow:0 2px 4px #17151e55}.open-sign{color:#b7ebc4}.open-sign:before{content:"";width:7px;height:7px;border-radius:50%;background:#9fdda7;box-shadow:0 0 7px #8ce99e88}.open-sign.closed{color:#ddd}.open-sign.closed:before{background:#a5a2aa;box-shadow:none}
-.stove{position:absolute;right:12.9%;bottom:35.4%;width:10%;height:18%;display:flex;justify-content:center;align-items:end;filter:drop-shadow(2px 2px 1px #39241788)}.stove img{width:100%;height:100%;object-fit:contain;object-position:50% 100%}.scene:not([data-level="0"]) .stove{width:9%;right:17%}.scene .stove+.stove{right:7.4%}
+.stove{position:absolute;right:12.9%;bottom:35.4%;width:8%;height:13%;display:flex;justify-content:center;align-items:end;filter:drop-shadow(2px 2px 1px #39241788)}.stove img{width:100%;height:100%;object-fit:contain;object-position:50% 100%}.scene[data-stoves="2"] .stove{right:17%}.scene .stove+.stove{right:7.4%}
 .patrons{position:absolute;inset:0;pointer-events:none}.patron{position:absolute;left:calc(52% - var(--place) * 8.75%);bottom:5%;height:44%;width:10%;transition:left .65s ease;transform:translateX(-50%)}.person,.sprite{width:100%;height:100%}.person{position:relative;animation:arrive .55s ease-out both}.sprite{object-fit:contain;object-position:center bottom;filter:drop-shadow(2px 2px 1px #20152177)}
 .patron:before{content:"";position:absolute;bottom:-.8%;left:17%;width:66%;height:5%;border-radius:50%;background:#19131888;filter:blur(1px)}
 .bubble{position:absolute;z-index:1;right:8%;top:0;transform:translate(50%,-70%);display:grid;place-items:center;border:1px solid #362f35;background:#ffedce;color:#493730;border-radius:5px;min-width:18px;height:19px;font:bold 11px/1 var(--font);box-shadow:1px 2px 0 #30222b77}
@@ -180,8 +203,19 @@ dialog{padding:0;color:var(--paper);background:#252633;border:1px solid #5b515a;
 .remake{display:block;width:100%;padding:7px;border:1px solid #72654e;border-radius:6px;color:var(--gold);background:#363036;font-size:12px}
 .burnt-actions{display:grid;gap:5px}
 .stove.smoking:after{content:"";position:absolute;bottom:70%;left:43%;width:15%;height:38%;background:#51494ed6;border-radius:48%;filter:blur(2px);animation:steam 1.4s ease-out infinite}
-.reaction{position:absolute;z-index:3;left:40%;bottom:45%;display:flex;align-items:center;gap:6px;padding:4px 8px 4px 4px;border:1px solid #83684c;border-radius:7px;background:#ffebc9;color:#483326;font-size:12px;box-shadow:0 2px 6px #221b2070}
-.reaction .portrait{width:28px;height:29px}.reaction b{color:#885321}.reaction.angry{color:#722f28;background:#ffd8c9;border-color:#ae5549}
+.patron.leaving { animation: guest-exit 2.2s ease-out both; }
+.leaving .person { animation: none; }
+.leaving .bubble { right: -12%; top: 25%; font: clamp(13px, 2vw, 22px)/1 sans-serif; padding: 2px; height: auto; background: #fff1d3; }
+.leaving[data-mood="sad"] .bubble { background: #ffd8cb; }
+body:has(dialog[open]) .patron.leaving { animation-play-state: paused; }
+@keyframes guest-exit {
+  0% { translate: 0 0; }
+  32%, 76% { translate: 65% 0; opacity: 1; }
+  100% { translate: 140% 0; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .patron.leaving { animation: guest-exit 2s steps(1, end) both !important; }
+}
 
 #daily-goal {
   display: flex;
@@ -252,6 +286,7 @@ dialog[data-kind="decor"] { width: min(470px, calc(100% - 24px)); }
 .swatch.painted { background: #dba66e; } .swatch.enamel { background: #418382; } .swatch.neon { background: #d2749f; }
 .title-select, .decor-wallet { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
 .title-select select { max-width: 70%; padding: 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--inset); color: var(--paper); font: inherit; }
+.title-select input { width: 8em; padding: 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--inset); color: var(--paper); font: inherit; }
 .dialog-inner .decor-hint { margin: 4px 0; font-size: 11px; }
 .decor-wallet { padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
 .decor-wallet b { color: var(--gold); }
@@ -425,8 +460,6 @@ dialog[data-kind=celebration] .dialog-top h2 { color: var(--gold); }
   .open-sign::before { width: 5px; height: 5px; }
   .scene-period { top: 5px; right: 6px; }
   .bubble { min-width: 13px; height: 14px; font-size: 9px; }
-  .reaction { left: 26%; gap: 4px; font-size: 10px; }
-  .reaction .portrait { width: 20px; height: 22px; }
 
   .hud { gap: 8px; min-height: 34px; padding: 4px 8px; font-size: 11px; }
   .hud > div { gap: 4px; white-space: nowrap; }
