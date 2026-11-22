@@ -28,6 +28,79 @@ nav button[aria-current=page]{background:#443634;border-color:#6a5043;color:var(
 .storefront{border-color:#514143}.scene{position:relative;isolation:isolate;aspect-ratio:2.5;overflow:hidden;background:#332831}
 .scene-world{position:absolute;inset:0}
 .shop{position:absolute;width:100%;height:100%;object-fit:fill}
+.shop-decor {
+  position: absolute;
+  inset: 0;
+  container-type: inline-size;
+  pointer-events: none;
+}
+/* Follow the painted fabric around the wooden sign and its scalloped hem. */
+.awning-fabric {
+  position: absolute;
+  inset: 0;
+  background: var(--shop-art) center / 100% 100% no-repeat;
+  clip-path: polygon(20.6% 16.2%, 39% 16.2%, 39.3% 18.8%, 76.9% 18.8%, 77.1% 16.2%, 95.2% 16.2%,
+    97.4% 27%, 97.3% 33%, 96% 33.3%, 95.3% 31.5%, 94.6% 33.3%, 92.3% 33.4%, 91.5% 31.6%,
+    90.8% 33.3%, 87.3% 33.4%, 86.7% 31.6%, 86% 33.3%, 82.3% 33.4%, 81.8% 31.5%,
+    81.1% 33.3%, 77.8% 33.4%, 77.2% 31.6%, 76.5% 33.3%, 73.1% 33.4%, 72.4% 31.5%,
+    71.8% 33.3%, 68.1% 33.4%, 67.5% 31.5%, 66.7% 33.3%, 63.1% 33.4%, 62.5% 31.5%,
+    61.8% 33.3%, 58.3% 33.4%, 57.6% 31.6%, 56.8% 33.3%, 53% 33.4%, 52.4% 31.6%,
+    51.7% 33.3%, 48.3% 33.4%, 47.6% 31.6%, 46.8% 33.3%, 43.6% 33.4%, 42.8% 31.5%,
+    42% 33.3%, 38.8% 33.4%, 38.2% 31.6%, 37.4% 33.3%, 34.6% 33.4%, 33.7% 31.6%,
+    32.9% 33.3%, 29.5% 33.4%, 28.8% 31.6%, 28.2% 33.3%, 24.9% 33.4%, 24.3% 31.5%,
+    23.6% 33.3%, 20.8% 33.3%, 20.2% 31.5%, 19.7% 33.3%, 18.1% 33.2%, 18.1% 26.8%);
+}
+[data-awning="mugwort"] .awning-fabric { filter: hue-rotate(102deg) saturate(.72) brightness(1.1); }
+[data-awning="indigo"] .awning-fabric { filter: hue-rotate(214deg) saturate(.76) brightness(1.14); }
+.shop-lettering {
+  position: absolute;
+  left: 39.55%;
+  top: 1.45%;
+  width: 37%;
+  height: 15.45%;
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  border: max(1px, .22cqw) solid #d2b783;
+  border-radius: .45cqw;
+  background: linear-gradient(168deg, #538786, #204c4e 48%, #153335);
+  color: #fff1cc;
+  box-shadow: inset 0 0 0 .28cqw #203d40, inset 0 .6cqw .8cqw #d7edc535, 0 .22cqw .3cqw #34231d;
+  font-size: 4.25cqw;
+  font-weight: 850;
+  letter-spacing: .35cqw;
+  line-height: 1;
+  text-shadow: 0 .15cqw #142b32;
+}
+.shop-lettering i { font-size: 2.2cqw; color: #f5cd82; }
+[data-sign="neon"] .shop-lettering {
+  background: repeating-linear-gradient(0deg, #272137 0 .45cqw, #211d31 .5cqw .6cqw);
+  color: #ffe9ee;
+  border-color: #705461;
+  font-weight: 650;
+  text-shadow: 0 0 .25cqw #ff6796, 0 0 .6cqw #ff699f, 0 0 1.1cqw #e73b8b;
+}
+[data-sign="neon"] .shop-lettering i { color: #b2f6f0; text-shadow: 0 0 .55cqw #50f5ee; }
+.shop-plaque {
+  position: absolute;
+  left: 75%;
+  top: 71%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: .8cqw;
+  padding: .55cqw 1.4cqw;
+  border: max(1px, .18cqw) solid #dfbd75;
+  border-radius: .4cqw;
+  color: #ffe2a0;
+  background: linear-gradient(150deg, #624938, #392b28);
+  box-shadow: 0 .3cqw .4cqw #2e1e1c99;
+  font-size: clamp(9px, 1.95cqw, 20px);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.shop-plaque svg { width: 1em; height: 1em; }
 .scene-badges{position:absolute;top:13px;left:14px;display:flex;align-items:center;gap:8px;z-index:3}
 .open-sign,.staff-sign{display:flex;align-items:center;gap:7px;padding:5px 10px;font-size:12px;color:#e8e4d4;line-height:1.35;background:#191c27ed;border:1px solid #77707a88;border-radius:5px;box-shadow:0 2px 4px #17151e55}.open-sign{color:#b7ebc4}.open-sign:before{content:"";width:7px;height:7px;border-radius:50%;background:#9fdda7;box-shadow:0 0 7px #8ce99e88}.open-sign.closed{color:#ddd}.open-sign.closed:before{background:#a5a2aa;box-shadow:none}
 .stove{position:absolute;right:12.9%;bottom:35.4%;width:10%;height:18%;display:flex;justify-content:center;align-items:end;filter:drop-shadow(2px 2px 1px #39241788)}.stove img{width:100%;height:100%;object-fit:contain;object-position:50% 100%}.scene:not([data-level="0"]) .stove{width:9%;right:17%}.scene .stove+.stove{right:7.4%}
@@ -133,6 +206,55 @@ dialog{padding:0;color:var(--paper);background:#252633;border:1px solid #5b515a;
 #daily-goal.complete { border-color: #567d69; background: #243630; }
 #daily-goal.complete b { color: var(--mint); }
 
+.decor-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 13px;
+  border: 1px solid #685746;
+  border-radius: 8px;
+  background: #342e33;
+  text-align: left;
+}
+.decor-entry > svg { color: var(--gold); }
+dialog[data-kind="decor"] { width: min(470px, calc(100% - 24px)); }
+.decor-preview {
+  position: relative;
+  aspect-ratio: 2.5;
+  overflow: hidden;
+  border-radius: 7px;
+  background: var(--shop-art) center / 100% 100% no-repeat;
+}
+.decor-group { min-width: 0; padding: 0; margin: 10px 0 0; border: 0; }
+.decor-group legend, .title-select { font-size: 13px; font-weight: 700; }
+.decor-group legend { padding: 0 0 4px; }
+.decor-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.decor-options label { position: relative; cursor: pointer; }
+.decor-options input { position: absolute; opacity: 0; }
+.decor-option {
+  display: grid;
+  grid-template-columns: 12px auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0 5px;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--inset);
+  font-size: 12px;
+}
+.decor-option small { grid-column: 1 / -1; color: var(--muted); text-align: center; font-size: 11px; }
+.decor-options :checked + span { border-color: var(--gold); background: #42363a; color: var(--gold); }
+.decor-options :focus-visible + span { outline: 2px solid var(--mint); outline-offset: 1px; }
+.swatch { width: 12px; height: 12px; border-radius: 50%; border: 1px solid #ffffff55; }
+.swatch.red { background: #b85846; } .swatch.mugwort { background: #568259; } .swatch.indigo { background: #4d5996; }
+.swatch.painted { background: #dba66e; } .swatch.enamel { background: #418382; } .swatch.neon { background: #d2749f; }
+.title-select, .decor-wallet { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; }
+.title-select select { max-width: 70%; padding: 6px; border: 1px solid var(--line); border-radius: 5px; background: var(--inset); color: var(--paper); font: inherit; }
+.dialog-inner .decor-hint { margin: 4px 0; font-size: 11px; }
+.decor-wallet { padding-top: 8px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; }
+.decor-wallet b { color: var(--gold); }
 .achievement-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px; }
 .achievement-head > b { color: var(--gold); font-size: 12px; white-space: nowrap; }
 .achievement-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 0; padding: 0; list-style: none; }
@@ -147,7 +269,8 @@ dialog{padding:0;color:var(--paper);background:#252633;border:1px solid #5b515a;
   background: var(--inset);
 }
 .achievement-icon { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 6px; background: #292a37; color: var(--muted); }
-.achievement-card h3 { margin: 0 0 4px; font-size: 12px; line-height: 1.35; }
+.achievement-title { display: block; font-size: 13px; line-height: 1.35; }
+.achievement-card .achievement-condition { margin: 2px 0 5px; color: var(--muted); font-size: 11px; line-height: 1.35; }
 .achievement-card > b { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .achievement-card progress {
   display: block;
@@ -173,6 +296,7 @@ dialog{padding:0;color:var(--paper);background:#252633;border:1px solid #5b515a;
 .celebration-list svg, .celebration-list small { color: var(--gold); }
 .celebration-list strong { font-size: 14px; }
 .celebration-list small { display: block; font-size: 11px; }
+.celebration-list .achievement-condition { color: var(--muted); }
 dialog[data-kind=celebration] .dialog-top h2 { color: var(--gold); }
 .timing-button.active {
   display: grid;
@@ -286,8 +410,15 @@ dialog[data-kind=celebration] .dialog-top h2 { color: var(--gold); }
   #play { display: flex; flex-direction: column; gap: 7px; min-height: 100%; height: 100%; padding-bottom: 6px; }
   .storefront, .panel { border-radius: 9px; }
   .storefront { display: flex; flex: 1 0 auto; flex-direction: column; max-height: calc(var(--scene-full-height) + 36px); }
-  .scene { flex: 1 0 auto; min-height: clamp(62px, 22vw, 120px); aspect-ratio: auto; }
-  .scene-world { top: auto; height: var(--scene-full-height); }
+  .scene { flex: 1 0 auto; min-height: clamp(62px, 22vw, 120px); aspect-ratio: auto; container-type: size; }
+  .scene::before {
+    content: "";
+    position: absolute;
+    inset: -4px;
+    background: var(--shop-art) center / cover;
+    filter: blur(3px) brightness(.45);
+  }
+  .scene-world { left: 50%; width: min(100%, 250cqh); transform: translateX(-50%); }
   .scene-badges { top: 5px; left: 6px; gap: 4px; }
   .open-sign, .staff-sign, .scene-period { font-size: 10px; padding: 2px 5px; }
   .open-sign { gap: 4px; }

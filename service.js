@@ -45,13 +45,25 @@ const upgrades = [
   { key: "hospitality", name: "서비스 개선", max: 3, base: 18000, icon: "star" }
 ];
 const upgradeCost = (s, upgrade) => upgrade.base * (s[upgrade.key] + 1);
+const shopStyles = {
+  awning: [
+    { id: "red", name: "앵두빛", cost: 0 },
+    { id: "mugwort", name: "쑥빛", cost: 4000 },
+    { id: "indigo", name: "쪽빛", cost: 6000 }
+  ],
+  sign: [
+    { id: "painted", name: "손글씨", cost: 0 },
+    { id: "enamel", name: "청록 법랑", cost: 5000 },
+    { id: "neon", name: "달빛 네온", cost: 9000 }
+  ]
+};
+const defaultDecor = () => ({ awning: "red", sign: "painted", title: "", owned: ["red", "painted"] });
 const arrivalFactor = s => (100 - s.promotion * promotionBoost) / 100;
 const openMinute = 7 * 60;
 const closeMinute = 22 * 60;
 const shiftDuration = 180_000;
 const burnDelay = 12_000;
 const fastService = 10_000;
-const ramenMenu = 2;
 const dumplingMenu = 7;
 const timingWindowWidth = 40;
 const timingTip = 500;
@@ -61,19 +73,38 @@ const dailyGoals = {
   lunch: { name: "점심(11~14시) 판매", target: 2, counts: (_, minute) => minute >= 11 * 60 && minute < 14 * 60 },
   fast: { name: "10초 이내 서빙", target: 3, counts: result => result.fast }
 };
+const menuAchievementTitles = [
+  { id: "gimbap", unit: "줄", titles: ["김밥 솜씨", "김밥 장인"] },
+  { id: "tteokbokki", unit: "접시", titles: ["매콤한 한 접시", "떡볶이의 달인"] },
+  { id: "ramen", unit: "그릇", titles: ["보글보글 한 그릇", "라면의 달인"] },
+  { id: "fish-cake", unit: "인분", titles: ["따끈한 어묵", "어묵꼬치 장인"] },
+  { id: "fritters", unit: "접시", titles: ["바삭한 첫걸음", "튀김의 달인"] },
+  { id: "sundae", unit: "접시", titles: ["찜기 앞 단골", "순대의 달인"] },
+  { id: "bulgogi", unit: "그릇", titles: ["한 그릇 든든하게", "불고기덮밥 장인"] },
+  { id: "dumplings", unit: "접시", titles: ["노릇한 한 접시", "만두 굽기의 달인"] },
+  { id: "fried-rice", unit: "접시", titles: ["볶음밥 손맛", "김치볶음밥 장인"] }
+];
 const achievements = [
-  { id: "first-sale", name: "첫 주문 판매", metric: "sales", target: 1, icon: "ticket" },
-  { id: "sales-50", name: "음식 50개 판매", metric: "sales", target: 50, icon: "ticket" },
-  { id: "sales-200", name: "음식 200개 판매", metric: "sales", target: 200, icon: "ticket" },
-  { id: "five-stars-10", name: "별점 5점 손님 10명", metric: "fiveStars", target: 10, icon: "star" },
-  { id: "five-stars-100", name: "별점 5점 손님 100명", metric: "fiveStars", target: 100, icon: "star" },
-  { id: "ramen-25", name: "라면 25그릇 판매", metric: "ramen", target: 25, icon: "pan" },
-  { id: "ramen-200", name: "라면 200그릇 판매", metric: "ramen", target: 200, icon: "pan" },
-  { id: "timing-10", name: "타이밍 성공 음식 10개 판매", metric: "timed", target: 10, icon: "timer" },
-  { id: "timing-100", name: "타이밍 성공 음식 100개 판매", metric: "timed", target: 100, icon: "timer" },
-  { id: "goal-1", name: "오늘 목표 첫 달성", metric: "goals", target: 1, icon: "target" },
-  { id: "goal-10", name: "오늘 목표 10회 달성", metric: "goals", target: 10, icon: "target" },
-  { id: "days-7", name: "영업 7일 마감", metric: "days", target: 7, icon: "moon" }
+  { id: "first-sale", title: "첫 장사", name: "첫 주문 판매", metric: "sales", target: 1, icon: "ticket" },
+  { id: "sales-50", title: "골목의 인기 가게", name: "음식 50개 판매", metric: "sales", target: 50, icon: "ticket" },
+  { id: "sales-200", title: "동네 분식 명가", name: "음식 200개 판매", metric: "sales", target: 200, icon: "ticket" },
+  { id: "sales-500", title: "분식의 전설", name: "음식 500개 판매", metric: "sales", target: 500, icon: "ticket" },
+  { id: "five-stars-10", title: "칭찬받는 주방", name: "별점 5점 손님 10명", metric: "fiveStars", target: 10, icon: "star" },
+  { id: "five-stars-100", title: "별 다섯 맛집", name: "별점 5점 손님 100명", metric: "fiveStars", target: 100, icon: "star" },
+  { id: "timing-10", title: "손끝 감각", name: "타이밍 성공 음식 10개 판매", metric: "timed", target: 10, icon: "timer" },
+  { id: "timing-100", title: "타이밍의 달인", name: "타이밍 성공 음식 100개 판매", metric: "timed", target: 100, icon: "timer" },
+  { id: "goal-1", title: "목표 첫걸음", name: "오늘 목표 첫 달성", metric: "goals", target: 1, icon: "target" },
+  { id: "goal-10", title: "꾸준한 사장님", name: "오늘 목표 10회 달성", metric: "goals", target: 10, icon: "target" },
+  { id: "days-7", title: "일주일 단골집", name: "영업 7일 마감", metric: "days", target: 7, icon: "moon" },
+  { id: "days-30", title: "한 달의 땀방울", name: "영업 30일 마감", metric: "days", target: 30, icon: "moon" },
+  ...menuAchievementTitles.flatMap(({ id, unit, titles }, menu) => [25, 200].map((target, tier) => ({
+    id: id + "-" + target,
+    title: titles[tier],
+    name: menus[menu].name + " " + target + unit + " 판매",
+    menu,
+    target,
+    icon: "pan"
+  })))
 ];
 const crowds = {
   quiet: { name: "한산한 날", min: 11_000, max: 18_000 },
@@ -155,9 +186,9 @@ function startDay(s) {
   return s;
 }
 function fresh() {
-  return startDay({ version: 10, day: 1, balance: 10000, total: 0, lastTicket: 0,
+  return startDay({ version: 11, day: 1, balance: 10000, total: 0, lastTicket: 0,
     staff: 0, speed: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false,
-    records: emptyAchievementRecords(), celebration: null });
+    records: emptyAchievementRecords(), celebration: null, decor: defaultDecor() });
 }
 const salePrice = (s, menu) => menus[menu].price + s.quality * menuPriceBoost;
 
@@ -295,16 +326,59 @@ function achievementCounts(s) {
   return {
     sales: s.total,
     fiveStars: s.records.fiveStars,
-    ramen: s.records.dishSales[ramenMenu],
+    dishSales: s.records.dishSales.slice(),
     timed: s.records.timed,
     goals: s.history.filter(day => day.goalReward > 0).length + Number(goalReward(s.goal) > 0),
     days: s.history.length
   };
 }
 
+function achievementProgress(counts, achievement) {
+  return achievement.menu === undefined ? counts[achievement.metric] : counts.dishSales[achievement.menu];
+}
+
+function earnedTitles(s) {
+  const counts = achievementCounts(s);
+  return achievements.filter(a => achievementProgress(counts, a) >= a.target);
+}
+
+function decorPrice(s, choice) {
+  if (choice.title !== "" && !earnedTitles(s).some(a => a.id === choice.title)) return null;
+  let cost = 0;
+  for (const [group, options] of Object.entries(shopStyles)) {
+    const item = options.find(o => o.id === choice[group]);
+    if (!item) return null;
+    if (!s.decor.owned.includes(item.id)) cost += item.cost;
+  }
+  return cost;
+}
+
+function applyDecor(s, choice) {
+  const cost = decorPrice(s, choice);
+  if (cost === null || cost > s.balance) return false;
+  const { awning, sign, title } = choice;
+  s.balance -= cost;
+  s.decor = { awning, sign, title, owned: [...new Set([...s.decor.owned, awning, sign])] };
+  return true;
+}
+
+function restoreDecor(s) {
+  const decor = defaultDecor(), saved = s.decor;
+  if (!saved) return decor;
+  for (const [group, options] of Object.entries(shopStyles)) {
+    for (const item of options) {
+      if (item.cost && Array.isArray(saved.owned) && saved.owned.includes(item.id)) decor.owned.push(item.id);
+      if (saved[group] === item.id && decor.owned.includes(item.id)) decor[group] = item.id;
+    }
+  }
+  if (saved.title && earnedTitles(s).some(a => a.id === saved.title)) decor.title = saved.title;
+  return decor;
+}
+
 function recordCelebration(s, before, goalId = null) {
   const after = achievementCounts(s);
-  const unlocked = achievements.filter(a => before[a.metric] < a.target && after[a.metric] >= a.target).map(a => a.id);
+  const unlocked = achievements.filter(a =>
+    achievementProgress(before, a) < a.target && achievementProgress(after, a) >= a.target).map(a => a.id);
   if (!goalId && !unlocked.length) return;
   const pending = s.celebration;
   s.celebration = { goalId: goalId ?? pending?.goalId ?? null, unlocked: [...(pending?.unlocked ?? []), ...unlocked] };
@@ -359,7 +433,7 @@ function restore(raw) {
   if (!raw || !Number.isInteger(raw.day) || raw.day < 1 || !Array.isArray(raw.history)) return fresh();
   // Finish steps already in progress using the timing of the original migration.
   const legacyStaffMultiplier = 1.5;
-  if ([2, 3, 4, 5, 6, 7, 8, 9, 10].includes(raw.version)) {
+  if ([2, 3, 4, 5, 6, 7, 8, 9, 10, 11].includes(raw.version)) {
     if (!Array.isArray(raw.queue) || raw.queue.length > (raw.version === 2 ? 6 : capacity) || !Array.isArray(raw.deck) ||
         raw.deck.length !== menus.length || !raw.deck.every(i => menus[i]) ||
         !raw.queue.every(q => q && menus[q.menu] && guests[q.guest] && tempers[q.temper] &&
@@ -447,6 +521,8 @@ function restore(raw) {
       raw.celebration = null;
       raw.version = 10;
     }
+    raw.decor = restoreDecor(raw);
+    raw.version = 11;
     return raw;
   }
   // Keep the original shop economy and honor an order already cooking or ready.

@@ -73,7 +73,21 @@ const meter = q => '<div class="meter" data-meter="' + q.id + '"><span></span></
 const timer = q => '<span class="remaining" data-time="' + q.id + '"></span>';
 const shortTime = ms => { const sec = Math.ceil(Math.max(0, ms) / 1000); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
 
+function drawDecor(host, choice) {
+  const title = achievements.find(a => a.id === choice.title);
+  host.dataset.awning = choice.awning;
+  host.dataset.sign = choice.sign;
+  host.setAttribute("role", "img");
+  host.setAttribute("aria-label", shopStyles.awning.find(item => item.id === choice.awning).name + " 차양, " +
+    shopStyles.sign.find(item => item.id === choice.sign).name + " 간판" + (title ? ", 칭호 " + title.title : ""));
+  paint(host, (choice.awning === "red" ? "" : '<span class="awning-fabric"></span>') +
+    (choice.sign === "painted" ? "" : '<span class="shop-lettering"><i>✦</i>별밤분식<i>✦</i></span>') +
+    (title ? '<span class="shop-plaque">' + icon("trophy") + title.title + '</span>' : ""));
+}
+const storefrontArt = part => "assets/art/" + part.image + ".webp";
+
 function renderScene() {
+  drawDecor($("shop-decor"), game.decor);
   const host = $("patrons");
   for (const el of Array.from(host.children))
     if (!game.queue.some(q => q.id === +el.dataset.id)) el.remove();
@@ -171,8 +185,13 @@ function refreshClock() {
   const minutes = clockMinutes(game), part = daypartAt(minutes);
   const time = String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0");
   if ($("time").textContent !== time) $("time").textContent = time;
-  const image = $("shop-image"), src = "assets/art/" + part.image + ".webp";
+  const image = $("shop-image"), src = storefrontArt(part);
   if (image.getAttribute("src") !== src) image.src = src;
+  const scene = $("scene");
+  if (scene.dataset.period !== part.image) {
+    scene.dataset.period = part.image;
+    scene.style.setProperty("--shop-art", 'url("' + src + '")');
+  }
   image.alt = part.name + "의 별밤분식과 골목";
   paint($("shift-icon"), icon(part.icon));
   const label = part.name + " · " + crowds[game.crowd].name;
@@ -245,7 +264,9 @@ function renderManage() {
     hospitality: '레벨당 정상 음식 평점 +' + hospitalityBonus / 10 + '점 · 최대 5점'
   };
   $("manage").innerHTML = '<h2>' + icon("upgrade") + '가게 관리</h2><div class="summary">' +
-    row("조리 직원", game.staff ? "1명" : "미채용") + row("보유 자금", money(game.balance)) + '</div><h3>가게 개선</h3>' +
+    row("조리 직원", game.staff ? "1명" : "미채용") + row("보유 자금", money(game.balance)) + '</div>' +
+    '<button class="decor-entry" id="open-decor"><span class="upgrade-art">' + icon("store") +
+    '</span><span class="item-copy"><b>가게 꾸미기</b><small>차양 · 간판 · 업적 칭호</small></span>' + icon("chevron") + '</button><h3>가게 개선</h3>' +
     upgrades.map(u => {
       const max = game[u.key] >= u.max;
       const level = u.key === "staff" ? "" : ' <em>Lv.' + game[u.key] + '/' + u.max + '</em>';
@@ -256,6 +277,43 @@ function renderManage() {
         '</small></div><button class="buy" data-buy="' + u.key + '" ' + (max || busy || game.balance < cost ? "disabled" : "") + '>' +
         (max ? done : money(cost)) + '</button></div>';
     }).join("") + (busy ? '<p>조리 중인 주문을 마치면 개선할 수 있어요.</p>' : '');
+}
+
+function openDecor() {
+  const titles = earnedTitles(game);
+  const choice = { awning: game.decor.awning, sign: game.decor.sign, title: game.decor.title };
+  const groupNames = { awning: "차양", sign: "간판" };
+  const groups = Object.entries(shopStyles).map(([group, options]) =>
+    '<fieldset class="decor-group"><legend>' + groupNames[group] + '</legend><div class="decor-options">' +
+    options.map(item => '<label><input type="radio" name="' + group + '" value="' + item.id + '"' +
+      (choice[group] === item.id ? " checked" : "") + '><span class="decor-option"><i class="swatch ' + item.id + '"></i><b>' +
+      item.name + '</b><small>' + (game.decor.owned.includes(item.id) ? "보유" : money(item.cost)) +
+      '</small></span></label>').join("") + '</div></fieldset>').join("");
+  dialog("가게 꾸미기", '<div class="decor-preview"><div class="shop-decor" id="preview-decor"></div></div>' + groups +
+    '<label class="title-select">칭호 명패<select id="decor-title"><option value="">걸지 않기</option>' +
+    titles.map(a => '<option value="' + a.id + '"' + (choice.title === a.id ? " selected" : "") + '>' + a.title + '</option>').join("") +
+    '</select></label>' + (titles.length ? '' : '<p class="decor-hint">첫 주문을 판매하면 ‘첫 장사’ 명패를 걸 수 있어요.</p>') +
+    '<div class="decor-wallet">보유 자금 <b>' + money(game.balance) + '</b></div><button class="primary" id="apply-decor"></button>', "decor");
+  const preview = $("preview-decor"), apply = $("apply-decor");
+  preview.parentElement.style.setProperty("--shop-art", 'url("' + storefrontArt(daypartAt(clockMinutes(game))) + '")');
+  function updatePreview() {
+    drawDecor(preview, choice);
+    const cost = decorPrice(game, choice);
+    const changed = Object.keys(choice).some(key => game.decor[key] !== choice[key]);
+    apply.disabled = !changed || cost === null || cost > game.balance;
+    apply.textContent = !changed ? "현재 가게 모습" : cost > game.balance ? money(cost - game.balance) + " 부족" :
+      cost ? money(cost) + "에 구매하고 적용" : "가게에 적용";
+  }
+  for (const radio of $("dialog-body").querySelectorAll('input[type="radio"]')) {
+    radio.onchange = () => { choice[radio.name] = radio.value; updatePreview(); };
+  }
+  $("decor-title").onchange = e => { choice.title = e.target.value; updatePreview(); };
+  apply.onclick = () => {
+    if (apply.disabled || !applyDecor(game, choice)) return;
+    save(); render(); $("modal").close(); tone(750); notify("가게 꾸미기를 적용했어요.");
+    $("open-decor").focus();
+  };
+  updatePreview();
 }
 function renderJournal() {
   $("journal").innerHTML = '<h2>' + icon("book") + '영업 일지</h2><h3>' + game.day + '일차 장부</h3><div class="summary">' +
@@ -270,16 +328,20 @@ function renderJournal() {
 }
 function renderAchievements() {
   const counts = achievementCounts(game);
-  const completed = achievements.filter(a => counts[a.metric] >= a.target).length;
+  const completed = achievements.filter(a => achievementProgress(counts, a) >= a.target).length;
+  const renderCard = a => {
+    const progress = Math.min(achievementProgress(counts, a), a.target);
+    const unlocked = progress === a.target;
+    return '<li class="achievement-card' + (unlocked ? ' unlocked' : '') + '"><span class="achievement-icon">' + icon(a.icon) +
+      '</span><div><strong class="achievement-title">' + a.title + '</strong><p class="achievement-condition">' + a.name +
+      '</p><progress value="' + progress + '" max="' + a.target + '" aria-label="' + a.name +
+      ' 진행도"></progress></div><b>' + (unlocked ? icon("check") + " 달성" : progress + " / " + a.target) + '</b></li>';
+  };
   $("achievements").innerHTML = '<div class="achievement-head"><h2>' + icon("trophy") + '업적</h2><b>' +
-    completed + ' / ' + achievements.length + ' 달성</b></div><ul class="achievement-list">' +
-    achievements.map(a => {
-      const progress = Math.min(counts[a.metric], a.target);
-      const unlocked = progress === a.target;
-      return '<li class="achievement-card' + (unlocked ? ' unlocked' : '') + '"><span class="achievement-icon">' + icon(a.icon) +
-        '</span><div><h3>' + a.name + '</h3><progress value="' + progress + '" max="' + a.target + '" aria-label="' + a.name +
-        ' 진행도"></progress></div><b>' + (unlocked ? icon("check") + " 달성" : progress + " / " + a.target) + '</b></li>';
-    }).join("") + '</ul>';
+    completed + ' / ' + achievements.length + ' 달성</b></div><h3>가게 운영</h3><ul class="achievement-list">' +
+    achievements.filter(a => a.menu === undefined).map(renderCard).join("") +
+    '</ul><h3>메뉴별 판매</h3><ul class="achievement-list">' +
+    achievements.filter(a => a.menu !== undefined).map(renderCard).join("") + '</ul>';
 }
 function menuTiles(selected = null) {
   return menus.map((m, i) => '<button class="menu-tile" data-menu="' + i + '" aria-pressed="' + (selected === i) + '">' +
@@ -356,7 +418,8 @@ function showCelebration() {
   const title = goal ? (unlocked.length ? "목표와 업적 달성!" : "오늘 목표 달성!") : "업적 달성!";
   const entries = (goal ? '<li>' + icon("target") + '<div><strong>' + goal.name + '</strong><small>마감 정산 보상 +' +
     money(dailyGoalReward) + '</small></div></li>' : '') + unlocked.map(a =>
-    '<li>' + icon("trophy") + '<strong>' + a.name + '</strong></li>').join("");
+    '<li>' + icon("trophy") + '<div><strong>' + a.title + '</strong><small class="achievement-condition">' + a.name +
+    '</small></div></li>').join("");
   dialog(title, '<ul class="celebration-list">' + entries + '</ul><p>확인할 때까지 영업이 멈춰요.</p>' +
     '<button class="primary" id="confirm-celebration">확인하고 계속하기</button>', "celebration");
   const confirm = $("confirm-celebration");
@@ -481,6 +544,7 @@ $("kitchen").addEventListener("click", e => {
   }
 });
 $("manage").onclick = e => {
+  if (e.target.closest("#open-decor")) { openDecor(); return; }
   const btn = e.target.closest("[data-buy]");
   if (!btn || btn.disabled) return;
   const u = upgrades.find(v => v.key === btn.dataset.buy);

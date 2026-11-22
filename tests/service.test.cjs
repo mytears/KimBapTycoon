@@ -12,8 +12,9 @@ function engine(random = () => .5) {
   return vm.runInNewContext(source + `
     ;({ fresh, restore, advance, placeDish, prepareStep, remakeDish, serve, settleDay,
         clockMinutes, daypartAt, burnDelay, stepDuration, shiftDuration, scheduleArrival,
-        tryTiming, timingProgress, timingTip, dumplingMenu, ramenMenu, menus, buyUpgrade, salePrice,
-        achievementCounts, goalReward, dailyGoalReward })
+        tryTiming, timingProgress, timingTip, dumplingMenu, menus, buyUpgrade, salePrice,
+        achievements, achievementCounts, achievementProgress, goalReward, dailyGoalReward,
+        earnedTitles, decorPrice, applyDecor })
   `, { Math: math });
 }
 function withOrder(e) {
@@ -53,6 +54,49 @@ test("the clock and four backgrounds follow play time, including quiet gaps and 
   assert.equal(s.history.length, 1);
   assert.equal(s.day, 2);
   assert.equal(e.clockMinutes(s), 7 * 60);
+});
+
+test("decorating buys the whole selection once and keeps purchases through closing and reload", () => {
+  const e = engine(), s = e.fresh();
+  const basic = { ...s.decor };
+  const choice = { awning: "mugwort", sign: "enamel", title: "" };
+  assert.equal(e.decorPrice(s, choice), 9000);
+  const before = JSON.stringify(s);
+  assert.equal(e.applyDecor(s, { ...choice, sign: "neon" }), false);
+  assert.equal(e.applyDecor(s, { ...choice, awning: "missing" }), false);
+  assert.equal(e.applyDecor(s, { ...choice, title: "ramen-200" }), false);
+  assert.equal(JSON.stringify(s), before);
+  assert.ok(e.applyDecor(s, choice));
+  assert.equal(s.balance, 1000);
+  assert.equal(e.decorPrice(s, choice), 0);
+  assert.ok(e.applyDecor(s, choice));
+  assert.ok(e.applyDecor(s, basic));
+  e.advance(s, e.shiftDuration);
+  e.settleDay(s);
+  const restored = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.ok(e.applyDecor(restored, choice));
+  assert.equal(restored.balance, 1000);
+  assert.equal(restored.decor.sign, "enamel");
+  assert.equal(restored.decor.owned.length, 4);
+});
+
+test("existing achievements unlock wearable titles and older shops keep their active orders", () => {
+  const e = engine(), s = withOrder(e);
+  s.version = 10;
+  delete s.decor;
+  s.total = 200;
+  s.records.dishSales[2] = 200;
+  const restored = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.equal(restored.stations[0].finish, s.stations[0].finish);
+  assert.equal(restored.queue[0].expires, s.queue[0].expires);
+  assert.equal(restored.balance, s.balance);
+  assert.equal(restored.decor.title, "");
+  assert.ok(e.earnedTitles(restored).some(a => a.id === "ramen-200"));
+  assert.ok(e.applyDecor(restored, { ...restored.decor, title: "ramen-200" }));
+  const saved = JSON.parse(JSON.stringify(restored));
+  assert.equal(e.restore(saved).decor.title, "ramen-200");
+  saved.decor = { awning: "indigo", sign: "missing", title: "goals-999", owned: ["unknown"] };
+  assert.deepEqual(JSON.parse(JSON.stringify(e.restore(saved).decor)), JSON.parse(JSON.stringify(e.fresh().decor)));
 });
 
 test("daily traffic, meal rushes and jitter affect arrival intervals", () => {
@@ -144,7 +188,7 @@ test("old shifts keep money and recipe progress and apply new patience to elapse
   old.queue[0].entered = 190000; old.queue[0].expires = 250000; old.stations[0].finish = 200900;
   delete old.stations[0].burnAt; delete old.stations[0].burnt;
   const s = e.restore(old);
-  assert.equal(s.version, 10); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
+  assert.equal(s.version, 11); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
   assert.equal(s.promotion, 0); assert.equal(s.hospitality, 0);
   assert.equal(s.goal.id, "fast"); assert.equal(s.goal.progress, 0);
   assert.equal(s.staff, 0);
@@ -371,24 +415,25 @@ test("a completed goal pays once at settlement and rotates the next day", () => 
 
 test("one sale can finish a daily goal and multiple achievements and keeps the confirmation across reload", () => {
   const e = engine(), s = e.fresh();
+  const ramen = e.achievements.find(a => a.id === "ramen-200");
   s.total = 199;
-  s.records.dishSales[e.ramenMenu] = 199;
+  s.records.dishSales[ramen.menu] = 199;
   s.records.fiveStars = 99;
   s.goal = { id: "fast", progress: 2 };
-  s.deck[0] = e.ramenMenu;
+  s.deck[0] = ramen.menu;
   e.advance(s, s.nextArrival);
   const order = s.queue[0];
   assert.ok(e.placeDish(s, 0, order.menu));
   finish(e, s, order.id);
   assert.equal(e.serve(s, order.id).stars, 5);
-  assert.equal(e.achievementCounts(s).ramen, 200);
+  assert.equal(e.achievementProgress(e.achievementCounts(s), ramen), 200);
   assert.equal(e.achievementCounts(s).fiveStars, 100);
   assert.equal(s.celebration.goalId, "fast");
-  assert.deepEqual(Array.from(s.celebration.unlocked), ["sales-200", "five-stars-100", "ramen-200", "goal-1"]);
+  assert.deepEqual(Array.from(s.celebration.unlocked).sort(), ["sales-200", "five-stars-100", "ramen-200", "goal-1"].sort());
   const restored = e.restore(JSON.parse(JSON.stringify(s)));
   assert.equal(restored.celebration.goalId, "fast");
   assert.equal(e.serve(restored, order.id), null);
-  assert.equal(restored.records.dishSales[e.ramenMenu], 200);
+  assert.equal(restored.records.dishSales[ramen.menu], 200);
 });
 
 test("known milestones carry over from older saves and the seventh closing unlocks only once", () => {
@@ -402,7 +447,7 @@ test("known milestones carry over from older saves and the seventh closing unloc
   assert.equal(counts.sales, 80);
   assert.equal(counts.goals, 2);
   assert.equal(counts.days, 6);
-  assert.equal(counts.ramen, 0);
+  assert.ok(counts.dishSales.every(count => count === 0));
   assert.equal(counts.fiveStars, 0);
   assert.equal(restored.celebration, null);
   e.advance(restored, e.shiftDuration);
@@ -410,4 +455,30 @@ test("known milestones carry over from older saves and the seventh closing unloc
   e.settleDay(restored);
   assert.deepEqual(Array.from(restored.celebration.unlocked), ["days-7"]);
   assert.equal(restored.day, 8);
+});
+
+test("thirty achievements have unique titles and both milestones use each dish's own saved count", () => {
+  const e = engine(), catalog = e.achievements;
+  assert.equal(catalog.length, 30);
+  assert.equal(new Set(catalog.map(a => a.id)).size, 30);
+  assert.equal(new Set(catalog.map(a => a.title)).size, 30);
+  assert.equal(catalog.find(a => a.id === "ramen-200").title, "라면의 달인");
+  for (const [menu] of e.menus.entries()) {
+    const milestones = catalog.filter(a => a.menu === menu);
+    assert.deepEqual(Array.from(milestones, a => a.target), [25, 200]);
+    for (const milestone of milestones) {
+      const s = e.fresh();
+      s.records.dishSales[menu] = milestone.target - 1;
+      s.deck[0] = menu;
+      const restored = e.restore(JSON.parse(JSON.stringify(s)));
+      assert.equal(e.achievementProgress(e.achievementCounts(restored), milestone), milestone.target - 1);
+      e.advance(restored, restored.nextArrival);
+      const order = restored.queue[0];
+      assert.ok(e.placeDish(restored, 0, order.menu));
+      finish(e, restored, order.id);
+      e.serve(restored, order.id);
+      assert.equal(e.achievementProgress(e.achievementCounts(restored), milestone), milestone.target);
+      assert.deepEqual(Array.from(restored.celebration.unlocked).filter(id => id !== "first-sale"), [milestone.id]);
+    }
+  }
 });
