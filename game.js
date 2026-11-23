@@ -38,6 +38,9 @@ function load() {
 }
 let game = load(), page = "play", noticeTimeout, audio;
 let lastFrame = performance.now(), lastSave = lastFrame, running = !document.hidden;
+const bgm = $("bgm");
+bgm.volume = .65;
+let musicActivated = false;
 const markup = new WeakMap();
 function paint(el, html) {
   if (markup.get(el) !== html) { el.innerHTML = html; markup.set(el, html); }
@@ -76,6 +79,10 @@ function save() {
   try { localStorage.setItem(storageKey, JSON.stringify(game)); }
   catch { notify("진행 상황을 저장할 수 없어요."); }
   lastSave = performance.now();
+}
+function updateMusic() {
+  if (!game.music || document.hidden) bgm.pause();
+  else if (musicActivated && bgm.paused) bgm.play().catch(() => {});
 }
 function tone(hz = 560) {
   if (!game.sound) return;
@@ -600,17 +607,25 @@ function chooseDish(slot) {
 }
 
 function settings() {
-  dialog("설정", '<div class="stat"><span>효과음</span><button id="toggle-audio" class="buy">' + (game.sound ? "켜짐" : "꺼짐") +
+  dialog("설정", '<div class="stat"><span>배경음악</span><button id="toggle-music" class="buy" aria-label="배경음악" aria-pressed="' +
+    game.music + '">' + (game.music ? "켜짐" : "꺼짐") +
+    '</button></div><div class="stat"><span>효과음</span><button id="toggle-audio" class="buy">' + (game.sound ? "켜짐" : "꺼짐") +
     '</button></div><h3>영업 방법</h3><p>오전 7시부터 밤 10시까지 영업해요. 하루는 플레이 시간 3분이고, 손님은 점심과 저녁 식사 시간에 더 자주 찾아와요.</p>' +
     '<p>두 번째 조리 단계의 노란 구간에 맞춰 누르면 서빙할 때 팁 ' + money(timingTip) + '을 받아요. 조리 시작 후 12초가 지나면 음식이 타요. 탄 음식은 1점과 0원, 주문 후 10초 안에 내면 5점, 그 밖의 정상 음식은 3·4·5점 중 하나를 기본 평점으로 받아요.</p>' +
     '<p>최대 5명이 기다려요. 성미 급한 손님은 ' +
     tempers.hasty.seconds + '초, 보통 손님은 ' + tempers.regular.seconds + '초, 느긋한 손님은 ' + tempers.easy.seconds +
     '초 동안 기다려요. 기다리다 떠난 손님은 1점을 남겨요. 조리대에서 메뉴를 고르는 동안에도 영업 시간이 흐릅니다.</p><button id="reset" class="secondary">처음부터 시작</button>');
+  $("toggle-music").onclick = e => {
+    game.music = !game.music;
+    e.currentTarget.textContent = game.music ? "켜짐" : "꺼짐";
+    e.currentTarget.setAttribute("aria-pressed", game.music);
+    save(); updateMusic();
+  };
   $("toggle-audio").onclick = () => { toggleSound(); settings(); };
   $("reset").onclick = () => {
     dialog("처음부터 시작할까요?", '<p>가게 자금과 영업 기록을 지우고 1일차부터 시작합니다.</p><button id="cancel-reset" class="primary">계속 플레이</button><button id="confirm-reset" class="secondary">기록 지우고 새로 시작</button>');
     $("cancel-reset").onclick = () => $("modal").close();
-    $("confirm-reset").onclick = () => { game = fresh(); save(); $("modal").close(); changePage("play"); };
+    $("confirm-reset").onclick = () => { game = fresh(); save(); $("modal").close(); changePage("play"); updateMusic(); };
   };
 }
 $("kitchen").addEventListener("click", e => {
@@ -695,9 +710,19 @@ $("modal").addEventListener("close", () => {
 document.addEventListener("visibilitychange", () => {
   if (document.hidden && running) { sync(); save(); }
   setClock();
+  updateMusic();
 });
-window.addEventListener("pagehide", () => { if (running) { sync(); save(); } running = false; });
-window.addEventListener("pageshow", setClock);
+document.addEventListener("click", e => {
+  if (!e.isTrusted) return;
+  musicActivated = true;
+  updateMusic();
+});
+window.addEventListener("pagehide", () => {
+  if (running) { sync(); save(); }
+  running = false;
+  bgm.pause();
+});
+window.addEventListener("pageshow", () => { setClock(); updateMusic(); });
 window.addEventListener("scroll", positionNotice, { capture: true, passive: true });
 window.addEventListener("resize", positionNotice);
 window.addEventListener("storage", e => {
@@ -707,6 +732,6 @@ window.addEventListener("storage", e => {
     $("modal").dataset.kind = "";
     $("modal").close();
   }
-  render(); showCelebration(); setClock();
+  render(); showCelebration(); setClock(); updateMusic();
 });
 save(); render(); showCelebration(); setInterval(sync, 100);

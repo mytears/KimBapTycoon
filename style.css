@@ -142,7 +142,7 @@ nav button[aria-current=page]{background:#443634;border-color:#6a5043;color:var(
   object-fit: contain;
   object-position: center bottom;
   transform: scaleX(-1);
-  filter: drop-shadow(-2px 2px 1px #20152177) brightness(var(--interior-light, 1));
+  filter: drop-shadow(-2px 2px 1px #20152177);
 }
 .scene[data-stoves="2"] .staff-sprite { right: 2.4%; }
 [data-sign="neon"] .shop-lettering {

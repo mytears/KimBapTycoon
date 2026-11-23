@@ -200,7 +200,7 @@ function startDay(s) {
 }
 function fresh() {
   return startDay({ version: 12, day: 1, balance: 10000, total: 0, lastTicket: 0,
-    staff: 0, stoveLevels: [0], interior: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false,
+    staff: 0, stoveLevels: [0], interior: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false, music: true,
     records: emptyAchievementRecords(), celebration: null, decor: defaultDecor() });
 }
 const salePrice = (s, menu) => menus[menu].price + s.quality * menuPriceBoost;
@@ -567,6 +567,7 @@ function restore(raw) {
       raw.version = 10;
     }
     raw.decor = restoreDecor(raw);
+    raw.music ??= true;
     raw.version = 12;
     return raw;
   }
