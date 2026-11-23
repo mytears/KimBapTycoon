@@ -42,11 +42,33 @@ const markup = new WeakMap();
 function paint(el, html) {
   if (markup.get(el) !== html) { el.innerHTML = html; markup.set(el, html); }
 }
+function positionNotice() {
+  const notice = $("notice");
+  if (!notice.classList.contains("visible")) return;
+  notice.classList.toggle("in-play", page === "play");
+  if (page !== "play") return;
+  const main = document.querySelector("main").getBoundingClientRect();
+  const queue = document.querySelector(".queue-panel").getBoundingClientRect();
+  const storefrontBottom = document.querySelector("#play .storefront").getBoundingClientRect().bottom;
+  const top = Math.max(0, main.top, storefrontBottom) + 8;
+  const bottom = Math.min(innerHeight, main.bottom) - 8;
+
+  notice.style.setProperty("--notice-left", queue.left + queue.width / 2 + "px");
+  notice.style.setProperty("--notice-width", queue.width - 16 + "px");
+  const height = notice.offsetHeight;
+  const queueTop = Math.max(top, queue.top + 8);
+  const queueBottom = Math.min(bottom, queue.bottom - 8);
+  // If the queue has scrolled out of view, use the space just below the shop.
+  const y = queueBottom - queueTop >= height ? (queueTop + queueBottom - height) / 2 : top;
+  notice.style.setProperty("--notice-top", y + "px");
+  notice.classList.toggle("offscreen", y + height > bottom);
+}
 function notify(message, variant = "") {
   const notice = $("notice");
   notice.textContent = message;
   notice.dataset.variant = variant;
   notice.classList.add("visible");
+  positionNotice();
   clearTimeout(noticeTimeout);
   noticeTimeout = setTimeout(() => $("notice").classList.remove("visible"), 2800);
 }
@@ -89,6 +111,51 @@ function drawDecor(host, choice) {
 }
 const storefrontArt = part => "assets/art/" + part.image + ".webp";
 
+const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+let ownerStation = -1, ownerDestination = null, ownerWalk = null;
+reducedMotion.addEventListener("change", () => {
+  if (reducedMotion.matches && ownerWalk) ownerWalk.finish();
+});
+function renderOwner(orders) {
+  const owner = $("shop-owner");
+  const busy = k => k && !k.burnt && k.finish != null;
+  let slot = game.stations.findIndex(busy);
+  // Finish tending the current burner before crossing to another active one.
+  if (busy(game.stations[ownerStation])) slot = ownerStation;
+  if (slot < 0) {
+    // Between two manual recipe steps, wait beside the unfinished dish.
+    const unfinished = (k, i) => k && !k.burnt && k.step < menus[orders[i].menu].steps.length;
+    slot = unfinished(game.stations[ownerStation], ownerStation) ? ownerStation : game.stations.findIndex(unfinished);
+  }
+  if (game.closed) slot = -1;
+  const stirring = busy(game.stations[slot]);
+  owner.dataset.action = stirring ? "cook" : "rest";
+  const atBoard = orders[slot]?.menu === 0;
+  owner.setAttribute("aria-label", slot < 0 ? "주문을 기다리는 사장님" :
+    (atBoard ? "김밥 조리대에서 " : (slot + 1) + "번 화구에서 ") + (stirring ? "요리하는 사장님" : "다음 조리 단계를 기다리는 사장님"));
+  ownerStation = slot;
+  const target = slot < 0 ? "var(--owner-home)" : "calc(var(" + (atBoard ? "--prep-board" : "--burner-" + (slot + 1)) + ") - 3.6%)";
+  if (target === ownerDestination) return;
+
+  const worldWidth = owner.offsetParent.clientWidth;
+  const from = parseFloat(getComputedStyle(owner).left) * 100 / worldWidth;
+  const firstRender = ownerDestination === null;
+  ownerDestination = target;
+  ownerWalk?.cancel();
+  ownerWalk = null;
+  delete owner.dataset.walk;
+  owner.style.left = target;
+  if (firstRender || game.closed || !worldWidth || reducedMotion.matches) return;
+  const distance = parseFloat(getComputedStyle(owner).left) * 100 / worldWidth - from;
+  if (Math.abs(distance) < .4) return;
+  owner.dataset.walk = distance < 0 ? "left" : "right";
+  ownerWalk = owner.animate([{ left: from + "%" }, { left: target }], {
+    duration: Math.min(1050, 300 + Math.abs(distance) * 31), easing: "cubic-bezier(.38,.04,.28,1)"
+  });
+  ownerWalk.onfinish = () => { delete owner.dataset.walk; ownerWalk = null; };
+  if (!running) ownerWalk.pause();
+}
+
 function renderScene() {
   drawDecor($("shop-decor"), game.decor);
   const host = $("patrons");
@@ -107,13 +174,19 @@ function renderScene() {
     el.setAttribute("role", "img"); el.setAttribute("aria-label", el.title);
     paint(el.querySelector(".bubble"), i === 0 ? dish(q.menu) : String(i + 1));
   });
-  paint($("equipment"), game.stations.map((k, slot) => '<div class="stove' + (k?.burnt ? ' smoking' : k?.finish != null ? ' cooking' : '') +
-    '"><img src="' + art("stove", game.stoveLevels[slot]) + '" alt="' + (slot + 1) + '번 조리대 · ' + equipment[game.stoveLevels[slot]] + '"></div>').join(""));
+  const orders = game.stations.map(k => k && game.queue.find(q => q.id === k.ticket));
+  const board = orders.some(q => q?.menu === 0) ? '<img class="prep-board" src="assets/art/board.webp" alt="김밥을 마는 도마">' : '';
+  paint($("equipment"), board + game.stations.map((k, slot) => {
+    const menu = orders[slot]?.menu;
+    const vessel = menu === undefined || menu === 0 ? "" : [1, 2, 3, 5].includes(menu) ? "pot" : "pan";
+    const heat = vessel && (k.burnt ? ' smoking' : k.finish != null ? ' cooking' : '');
+    return '<div class="stove' + heat + '"><img src="' + art("stove", game.stoveLevels[slot]) + '" alt="' +
+      (slot + 1) + '번 조리대 · ' + equipment[game.stoveLevels[slot]] + '">' +
+      (vessel ? '<img class="cookware" src="assets/art/' + vessel + '.webp" alt="">' : '') + '</div>';
+  }).join(""));
   $("scene").dataset.stoves = game.stoveLevels.length;
+  renderOwner(orders);
   $("staff-sprite").hidden = !game.staff || game.closed;
-  $("staff-sign").hidden = !game.staff || game.closed;
-  $("open-sign").textContent = game.closed ? "영업 마감" : "영업 중";
-  $("open-sign").classList.toggle("closed", game.closed);
 }
 
 function showGuestReaction(ticket, stars) {
@@ -320,7 +393,8 @@ function openDecor() {
       (choice[group] === item.id ? " checked" : "") + '><span class="decor-option"><i class="swatch ' + item.id + '"></i><b>' +
       item.name + '</b><small>' + (game.decor.owned.includes(item.id) ? "보유" : money(item.cost)) +
       '</small></span></label>').join("") + '</div></fieldset>').join("");
-  dialog("가게 꾸미기", '<div class="decor-preview"><div class="shop-decor" id="preview-decor"></div></div>' +
+  dialog("가게 꾸미기", '<div class="decor-preview"><div class="shop-decor" id="preview-decor"></div>' +
+    '<div class="shop-owner" aria-hidden="true"><span class="owner-figure"></span></div><div class="counter-edge"></div></div>' +
     '<label class="title-select">가게 이름 (1~4글자)<input id="shop-name" type="text" autocomplete="off"></label>' + groups +
     '<label class="title-select">칭호 명패<select id="decor-title"><option value="">걸지 않기</option>' +
     titles.map(a => '<option value="' + a.id + '"' + (choice.title === a.id ? " selected" : "") + '>' + a.title + '</option>').join("") +
@@ -406,6 +480,7 @@ function render() {
   if (page === "achievements") { renderAchievements(); return; }
   renderScene(); renderQueue(); renderKitchen();
   refreshTimers();
+  positionNotice();
 }
 
 function sync() {
@@ -430,6 +505,11 @@ function sync() {
 function setClock() {
   const modal = $("modal");
   running = !document.hidden && page === "play" && !game.celebration && (!modal.open || modal.dataset.kind === "picker");
+  $("scene").toggleAttribute("data-paused", !running || game.closed);
+  if (ownerWalk) {
+    if (running) ownerWalk.play();
+    else ownerWalk.pause();
+  }
   lastFrame = performance.now();
 }
 function changePage(next) {
@@ -439,6 +519,7 @@ function changePage(next) {
     if (b.dataset.page === next) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
   });
   setClock(); save(); render(); document.querySelector("main").scrollTop = 0; window.scrollTo(0, 0);
+  positionNotice();
 }
 function dialog(title, html, kind = "") {
   $("dialog-title").textContent = title;
@@ -617,6 +698,8 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("pagehide", () => { if (running) { sync(); save(); } running = false; });
 window.addEventListener("pageshow", setClock);
+window.addEventListener("scroll", positionNotice, { capture: true, passive: true });
+window.addEventListener("resize", positionNotice);
 window.addEventListener("storage", e => {
   if (e.key !== storageKey) return;
   game = load();

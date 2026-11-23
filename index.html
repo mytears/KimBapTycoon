@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#141620">
-  <title>별밤분식 · 분식집 타이쿤</title>
+  <title>분식타이쿤</title>
   <link rel="icon" href="assets/logo.png">
+  <link rel="apple-touch-icon" href="assets/logo.png">
   <link rel="stylesheet" href="style.css">
   <script src="service.js" defer></script>
   <script src="game.js" defer></script>
@@ -13,7 +14,7 @@
 <body>
   <div class="shell">
     <header class="masthead">
-      <div class="brand"><div class="brand-mark"><img src="assets/art/dish-0.webp" alt=""></div><div><h1>별밤<span>분식</span></h1><p id="daily-goal" aria-live="polite"></p></div></div>
+      <div class="brand"><img class="brand-mark" src="assets/logo.png" alt=""><div><h1>분식<span>타이쿤</span></h1><p id="daily-goal" aria-live="polite"></p></div></div>
       <nav aria-label="게임 화면">
         <button data-page="play" aria-current="page"><i data-icon="store"></i>영업</button>
         <button data-page="manage"><i data-icon="upgrade"></i>가게 관리</button>
@@ -29,12 +30,13 @@
             <div class="scene-world">
               <img id="shop-image" class="shop" src="assets/art/storefront-morning.webp" alt="아침의 별밤분식과 골목">
               <div id="shop-decor" class="shop-decor"></div>
-              <img id="staff-sprite" class="staff-sprite" src="assets/art/staff.webp" alt="주방에서 함께 조리하는 직원" hidden>
+              <div id="shop-owner" class="shop-owner" role="img" aria-label="주문을 기다리는 사장님"><span class="owner-figure"></span></div>
+              <div class="counter-edge" aria-hidden="true"></div>
               <div id="equipment"></div>
+              <img id="staff-sprite" class="staff-sprite" src="assets/art/staff.webp" alt="가게 밖 화구 앞에 서 있는 여성 조리 직원" hidden>
               <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
               <div id="departures" class="patrons" aria-label="떠나는 손님 반응"></div>
             </div>
-            <div class="scene-badges"><span id="open-sign" class="open-sign">영업 중</span><span class="staff-sign" id="staff-sign" hidden>직원 근무 중</span></div>
             <span class="scene-period" id="scene-period"></span>
           </div>
           <div class="hud">
