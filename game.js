@@ -12,7 +12,7 @@ const icons = {
   muted: "M3 9h4l5-4v14l-5-4H3z M16 9l5 6 M21 9l-5 6",
   gear: "M10 3h4l1 3 3-1 2 3-2 3 2 2-1 4-4 0-1 3h-4l-1-3-3 0-2-3 2-3-2-3 2-3 3 1z M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z",
   moon: "M19 15A8 8 0 0 1 9 4a8.5 8.5 0 1 0 10 11z M17 3v4m-2-2h4",
-  sun: "M16 12a4 4 0 1 1-8 0 4 4 0 1 1 8 0z M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l2-2",
+  sun: "M16 12a4 4 0 1 1-8 0 4 4 0 1 1 8 0z M12 2v2m0 16v2M2 12h2m16 0h2M5 5l2 2m10 10 2 2M5 19l2-2M17 7l-2-2",
   sunrise: "M2 16h20M5 20h14M7 16a5 5 0 0 1 10 0M12 9V2m-3 3 3-3 3 3M3 10l2 1m14 0 2-1",
   sunset: "M2 16h20M5 20h14M7 16a5 5 0 0 1 10 0M12 2v7m-3-3 3 3 3-3M3 10l2 1m14 0 2-1",
   ticket: "M4 5h16v5a2 2 0 0 0 0 4v5H4v-5a2 2 0 0 0 0-4z M14 6v2m0 3v2m0 3v2",
@@ -28,7 +28,12 @@ const icons = {
   leaf: "M20 4Q3 3 4 14q2 8 10 3 4-3 6-13z M5 20l10-11",
   bell: "M3 16h18 M5 14a7 7 0 0 1 14 0z M12 5V3 M3 20h18",
   timer: "M12 5a8 8 0 1 1 0 16 8 8 0 0 1 0-16z M9 2h6m-3 0v3m0 4v4l3 2",
-  stove: "M3 12h18v8H3z M6 12V9h12v3 M9 6q-2-2 0-4m5 4q-2-2 0-4 M6 16h1m4 0h1"
+  stove: "M3 12h18v8H3z M6 12V9h12v3 M9 6q-2-2 0-4m5 4q-2-2 0-4 M6 16h1m4 0h1",
+  heart: "M12 20s-7-4.4-9-8.7C1.5 8.1 3.7 5 6.9 5c1.9 0 3.5 1 5.1 2.7C13.6 6 15.2 5 17.1 5c3.2 0 5.4 3.1 3.9 6.3C19 15.6 12 20 12 20z",
+  rain: "M7 14h10a4 4 0 0 0 .5-8A5.5 5.5 0 0 0 6.8 5 3.8 3.8 0 0 0 7 14z M8 17l-1 3 M12 17l-1 3 M16 17l-1 3",
+  wind: "M3 8h11a2.5 2.5 0 1 0-2.5-2.5 M3 13h15a2.5 2.5 0 1 1-2.5 2.5 M3 18h8a2 2 0 1 1-2 2",
+  flag: "M5 21V4m0 1h12l-2.5 4L17 13H5",
+  spark: "M12 2l2.2 6.8L21 11l-6.8 2.2L12 20l-2.2-6.8L3 11l6.8-2.2z"
 };
 function icon(key) {
   return '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="' + icons[key] + '"/></svg>';
@@ -37,6 +42,7 @@ function load() {
   try { return restore(JSON.parse(localStorage.getItem(storageKey))); } catch { return fresh(); }
 }
 let game = load(), page = "play", noticeTimeout, audio;
+let adPending = false;
 let lastFrame = performance.now(), lastSave = lastFrame, running = !document.hidden;
 const bgm = $("bgm");
 bgm.volume = .65;
@@ -84,16 +90,64 @@ function updateMusic() {
   if (!game.music || document.hidden) bgm.pause();
   else if (musicActivated && bgm.paused) bgm.play().catch(() => {});
 }
-function tone(hz = 560) {
+function playNotes(notes) {
   if (!game.sound) return;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     audio.resume().catch(() => {});
-    const osc = audio.createOscillator(), gain = audio.createGain(), t = audio.currentTime;
-    osc.type = "sine"; osc.frequency.value = hz;
-    gain.gain.setValueAtTime(.11, t); gain.gain.exponentialRampToValueAtTime(.001, t + .13);
-    osc.connect(gain); gain.connect(audio.destination); osc.start(); osc.stop(t + .14);
+    const now = audio.currentTime;
+    for (const [hz, offset, dur, type = "sine", vol = .1, glide = null] of notes) {
+      const osc = audio.createOscillator();
+      const gain = audio.createGain();
+      const t = now + offset;
+      osc.type = type;
+      osc.frequency.setValueAtTime(hz, t);
+      if (glide) osc.frequency.exponentialRampToValueAtTime(glide, t + dur);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.linearRampToValueAtTime(vol, t + Math.min(0.015, dur * 0.25));
+      gain.gain.exponentialRampToValueAtTime(0.0008, t + dur);
+      osc.connect(gain);
+      gain.connect(audio.destination);
+      osc.start(t);
+      osc.stop(t + dur + 0.02);
+    }
   } catch {}
+}
+function sfx(kind) {
+  const patterns = {
+    place: [[360, 0, .08, "triangle", .09], [480, .055, .1, "triangle", .09]],
+    step: [[440, 0, .08, "sine", .09], [554, .05, .09, "sine", .08]],
+    prepared: [[660, 0, .09, "sine", .08], [880, .065, .13, "sine", .09]],
+    "timing-hit": [[784, 0, .09, "triangle", .1], [988, .055, .09, "triangle", .1], [1318, .11, .16, "triangle", .11]],
+    "timing-miss": [[270, 0, .1, "triangle", .09], [200, .07, .14, "triangle", .08]],
+    serve: [[587, 0, .08, "triangle", .1], [880, .05, .1, "triangle", .1], [1175, .11, .18, "sine", .1]],
+    fever: [[523, 0, .09, "triangle", .1], [659, .06, .09, "triangle", .1], [784, .12, .09, "triangle", .1], [1046, .18, .22, "triangle", .12]],
+    burnt: [[195, 0, .16, "sawtooth", .07, 130], [140, .12, .22, "sawtooth", .06, 95]],
+    arrival: [[1046, 0, .09, "sine", .05], [1318, .07, .14, "sine", .05]],
+    upgrade: [[523, 0, .08, "triangle", .09], [659, .06, .09, "triangle", .09], [784, .12, .16, "triangle", .1]],
+    celebrate: [[523, 0, .09, "triangle", .09], [659, .07, .09, "triangle", .09], [784, .14, .1, "triangle", .1], [1046, .21, .24, "sine", .11]],
+    "rank-up": [[659, 0, .09, "sine", .09], [880, .07, .1, "sine", .09], [1175, .14, .2, "triangle", .1]],
+    "staff-auto": [[523, 0, .07, "sine", .06], [659, .055, .09, "sine", .06]],
+    error: [[230, 0, .1, "triangle", .08, 185]]
+  };
+  playNotes(patterns[kind] || [[560, 0, .12, "sine", .09]]);
+}
+function spawnFloat(text, variant = "gold", x = 42, y = 44, delay = 0) {
+  const host = $("float-layer");
+  if (!host || page !== "play") return;
+  const el = document.createElement("span");
+  el.className = "float-pop " + variant;
+  el.textContent = text;
+  el.style.left = x + "%";
+  el.style.top = y + "%";
+  if (delay) el.style.animationDelay = delay + "ms";
+  host.append(el);
+  const cleanup = () => el.remove();
+  el.addEventListener("animationend", cleanup, { once: true });
+  setTimeout(cleanup, 1700 + delay);
+}
+function stoveAnchorX(slot) {
+  return game.stoveLevels.length === 2 ? (slot === 0 ? 73 : 84) : 78;
 }
 const dish = (index, cls = "") => '<img class="' + cls + '" src="' + art("dish", index) + '" alt="">';
 const portrait = q => '<span class="portrait guest-' + q.guest + '"><img src="' + art("guest", q.guest) + '" alt=""></span>';
@@ -177,7 +231,9 @@ function renderScene() {
     }
     el.style.setProperty("--place", i);
     el.classList.toggle("first", i === 0);
-    el.title = (i + 1) + "번째 · " + guests[q.guest] + " · " + menus[q.menu].name;
+    const fav = guestProfiles[q.guest].favorite === q.menu;
+    el.title = (i + 1) + "번째 · " + (q.special ? "특별 손님 · " : "") + guests[q.guest] + " · " + menus[q.menu].name + (fav ? " (최애)" : "");
+    el.classList.toggle("special", !!q.special);
     el.setAttribute("role", "img"); el.setAttribute("aria-label", el.title);
     paint(el.querySelector(".bubble"), i === 0 ? dish(q.menu) : String(i + 1));
   });
@@ -191,7 +247,10 @@ function renderScene() {
       (slot + 1) + '번 조리대 · ' + equipment[game.stoveLevels[slot]] + '">' +
       (vessel ? '<img class="cookware" src="assets/art/' + vessel + '.webp" alt="">' : '') + '</div>';
   }).join(""));
-  $("scene").dataset.stoves = game.stoveLevels.length;
+  const scene = $("scene");
+  scene.dataset.stoves = game.stoveLevels.length;
+  scene.dataset.weather = game.weather;
+  scene.dataset.fever = isFever(game) ? "true" : "false";
   renderOwner(orders);
   $("staff-sprite").hidden = !game.staff || game.closed;
 }
@@ -214,12 +273,22 @@ function showGuestReaction(ticket, stars) {
   });
 }
 
+function orderTags(q) {
+  const tags = [];
+  const rank = guestRank(game.records.guestAffinity[q.guest] || 0);
+  if (rank.level >= 1) tags.push('<span class="order-tag rank-tag">' + rank.name + '</span>');
+  if (guestProfiles[q.guest].favorite === q.menu) tags.push('<span class="order-tag fav-tag">' + icon("heart") + '최애</span>');
+  if (game.featuredMenu === q.menu) tags.push('<span class="order-tag feat-tag">추천</span>');
+  if (weathers[game.weather]?.menus.includes(q.menu)) tags.push('<span class="order-tag weather-tag">인기</span>');
+  return tags.length ? '<div class="order-tags">' + tags.join("") + '</div>' : '';
+}
+
 function renderQueue() {
   const head = game.queue[0];
   $("queue-count").textContent = game.queue.length + " / " + capacity + "명";
-  paint($("current-order"), head ? '<div class="ticket"><div class="ticket-top"><span class="first-label">' + icon("ticket") +
-    '첫 주문</span><span class="order-id">NO. ' + serial(head.id) + '</span></div><div class="ticket-main">' + portrait(head) +
-    '<div class="customer"><small>' + guests[head.guest] + '</small><h3>' + menus[head.menu].name + '</h3></div>' +
+  paint($("current-order"), head ? '<div class="ticket' + (head.special ? ' special-ticket' : '') + '"><div class="ticket-top"><span class="first-label">' + icon(head.special ? "star" : "ticket") +
+    (head.special ? '특별 손님' : '첫 주문') + '</span><span class="order-id">NO. ' + serial(head.id) + '</span></div><div class="ticket-main">' + portrait(head) +
+    '<div class="customer"><small>' + guests[head.guest] + '</small><h3>' + menus[head.menu].name + '</h3>' + orderTags(head) + '</div>' +
     '<b class="ticket-price">' + money(salePrice(game, head.menu)) + '</b></div><div class="patience-line">' + temperament(head) +
     '<span class="deadline">' + icon("timer") + '남은 시간 ' + timer(head) + '</span></div>' + meter(head) + '</div>'
     : '<div class="empty-ticket">' + icon(game.closed ? "moon" : "store") +
@@ -227,17 +296,19 @@ function renderQueue() {
   paint($("waiting"), Array.from({ length: capacity - 1 }, (_, i) => {
     const q = game.queue[i + 1], rank = '<span class="rank">' + String(i + 2).padStart(2, "0") + '</span>';
     if (!q) return '<li class="waiting-order vacant" aria-hidden="true">' + rank + '<span>빈 자리</span></li>';
-    return '<li class="waiting-order">' + rank + portrait(q) +
-    '<div class="queued-dish"><b>' + menus[q.menu].name + '</b><small>' + guests[q.guest] + '</small></div>' +
+    const fav = guestProfiles[q.guest].favorite === q.menu ? ' ♥' : '';
+    return '<li class="waiting-order' + (q.special ? ' special' : '') + '">' + rank + portrait(q) +
+    '<div class="queued-dish"><b>' + menus[q.menu].name + fav + '</b><small>' + (q.special ? '★ 특별 손님 · ' : '') + guests[q.guest] + '</small></div>' +
     '<div class="queued-time">' + temperament(q) + timer(q) + meter(q) + '</div></li>';
   }).join(""));
 }
 
 function timingButton(station, menu) {
   const label = station.timingResult === "missed" ? "일반" : "노란 구간";
+  const to = Math.min(100, menu.timing.from + timingWindowFor(game));
   return '<button class="step-button active timing-button" data-timing="' + station.ticket + '" ' +
     (station.timingResult ? 'disabled' : '') + ' style="--timing-from:' + menu.timing.from + '%;--timing-to:' +
-    (menu.timing.from + timingWindowWidth) + '%"><strong>' + menu.timing.action + '</strong><span class="timing-label">' +
+    to + '%"><strong>' + menu.timing.action + '</strong><span class="timing-label">' +
     label + '</span><span class="timing-track" aria-hidden="true"></span></button>';
 }
 
@@ -245,8 +316,9 @@ function stationMarkup(k, slot) {
   const title = (slot + 1) + "번 조리대";
   if (!k) {
     const available = pendingOrders(game).length > 0;
+    const autoHint = game.staff >= 3 && available ? ' · 직원 준비 중' : '';
     return '<button class="empty-station" data-choose="' + slot + '" aria-label="' + title + ' 메뉴 선택" ' +
-      (available ? '' : 'disabled') + '><span class="station-title">' + title + '</span><img src="' +
+      (available ? '' : 'disabled') + '><span class="station-title">' + title + autoHint + '</span><img src="' +
       art("stove", game.stoveLevels[slot]) + '" alt=""><b>' + (available ? '메뉴 선택 ' + icon("chevron") : '주문 대기 중') + '</b></button>';
   }
   const order = game.queue.find(q => q.id === k.ticket), menu = menus[order.menu];
@@ -263,7 +335,7 @@ function stationMarkup(k, slot) {
     ? '<div class="burnt-actions">' + controls + '<button class="remake" data-remake="' + order.id + '">다시 조리하기</button></div>'
     : controls;
   const timingHit = !k.burnt && k.timingResult === "hit";
-  const stageLabel = k.burnt ? "음식이 탔어요" : timingHit ? icon("check") + "타이밍 성공" :
+  const stageLabel = k.burnt ? "음식이 탔어요" : timingHit ? icon("check") + "타이밍 성공 (팁 +" + money(dishTimingTip(game, order.menu)) + ")" :
     ready ? "조리 완료" : (step + 1) + ' / ' + menu.steps.length + '단계';
   const nextStepClass = timingHit && step === 2 && !busy ? ' timing-complete' : '';
   return '<section class="loaded-station' + (k.burnt ? ' burnt' : '') + nextStepClass + '" aria-label="' + title + '"><div class="station-title">' + title + '<small>NO. ' +
@@ -273,6 +345,8 @@ function stationMarkup(k, slot) {
     '</h3><small>' + heat + '</small></div>' + actions + '</section>';
 }
 function renderKitchen() {
+  const panel = document.querySelector(".kitchen-panel");
+  panel?.classList.toggle("fever-active", isFever(game));
   if (game.closed) {
     paint($("kitchen"), '<div class="empty-kitchen">' + icon("moon") + '<h3>오늘의 조리 완료</h3></div>' +
       '<button class="primary" data-settle>오늘의 정산 ' + icon("chevron") + '</button>');
@@ -281,6 +355,26 @@ function renderKitchen() {
   paint($("kitchen"), '<div class="stations" data-count="' + game.stations.length + '">' +
     game.stations.map(() => '<div class="station-slot"></div>').join("") + '</div>');
   $("kitchen").querySelectorAll(".station-slot").forEach((el, slot) => paint(el, stationMarkup(game.stations[slot], slot)));
+}
+
+function refreshSceneBadges() {
+  const host = $("scene-badges");
+  if (!host) return;
+  const fever = isFever(game);
+  const feat = menus[game.featuredMenu];
+  const badges = [];
+  if (feat) {
+    const synergy = weathers[game.weather]?.menus.includes(game.featuredMenu);
+    badges.push('<span class="scene-badge featured' + (synergy ? ' synergy' : '') + '" title="오늘의 추천 메뉴 · 판매가 +' + money(featuredPriceBonus) + '">' +
+      icon("star") + '추천 ' + feat.name + '</span>');
+  }
+  if (fever) {
+    const sec = Math.max(1, Math.ceil((game.feverUntil - game.elapsed) / 1000));
+    badges.push('<span class="scene-badge fever">' + icon("fire") + '피버 ' + sec + '초 · ' + game.combo + '콤보</span>');
+  } else if (game.combo >= 2) {
+    badges.push('<span class="scene-badge combo">' + icon("spark") + game.combo + ' 콤보</span>');
+  }
+  paint(host, badges.join(""));
 }
 
 function refreshClock() {
@@ -294,10 +388,15 @@ function refreshClock() {
     scene.dataset.period = part.image;
     scene.style.setProperty("--shop-art", 'url("' + src + '")');
   }
+  scene.dataset.weather = game.weather;
+  scene.dataset.fever = isFever(game) ? "true" : "false";
   image.alt = part.name + "의 " + game.decor.name + " 가게와 골목";
   paint($("shift-icon"), icon(part.icon));
-  const label = part.name + " · " + crowds[game.crowd].name;
-  if ($("scene-period").textContent !== label) $("scene-period").textContent = label;
+  const w = weathers[game.weather] || weathers.clear;
+  const periodHtml = icon(w.icon) + '<span>' + w.name + ' · ' + part.name + ' · ' + crowds[game.crowd].name + '</span>';
+  paint($("scene-period"), periodHtml);
+  $("scene-period").title = w.name + ": " + w.desc;
+  refreshSceneBadges();
 }
 function refreshTimers() {
   refreshClock();
@@ -323,13 +422,13 @@ function refreshTimers() {
       }
     }
     if (k?.finish == null) continue;
+    const order = game.queue.find(q => q.id === k.ticket);
     const timing = $("kitchen").querySelector('[data-timing="' + k.ticket + '"]');
-    if (timing) {
+    if (timing && order) {
       const progress = timingProgress(game, k);
       timing.style.setProperty("--timing-progress", progress + "%");
       if (!timing.disabled) {
-        const order = game.queue.find(q => q.id === k.ticket);
-        const inWindow = hitTimingWindow(order.menu, progress);
+        const inWindow = hitTimingWindow(order.menu, progress, timingWindowFor(game));
         const label = inWindow ? "지금!" : progress > menus[order.menu].timing.from ? "지났어요" : "노란 구간";
         timing.classList.toggle("in-window", inWindow);
         const text = timing.querySelector(".timing-label");
@@ -338,7 +437,10 @@ function refreshTimers() {
       continue;
     }
     const active = $("kitchen").querySelector('.step-button.active[data-ticket="' + k.ticket + '"]');
-    active?.style.setProperty("--cooked", Math.min(100, 100 * (1 - (k.finish - game.elapsed) / stepDuration(game, slot))) + "%");
+    if (active && order) {
+      const dur = stepDuration(game, slot, order.menu);
+      active.style.setProperty("--cooked", Math.min(100, Math.max(0, 100 * (1 - (k.finish - game.elapsed) / dur))) + "%");
+    }
   }
 }
 const row = (label, value) => '<div class="stat"><span>' + label + '</span><b>' + value + '</b></div>';
@@ -351,9 +453,18 @@ function goalStats(s) {
   return row("오늘 목표", title) + row("목표 보상", reward ? money(reward) : s.closed ? "미달성" : "달성 시 " + money(dailyGoalReward));
 }
 function dayStats(s) {
-  return row("판매 완료", s.served + "건") + row("탄 음식 제공", s.burntServed + "건") +
+  const w = weathers[s.weather] || weathers.clear;
+  return row("오늘 날씨", w.name) + row("오늘 추천 메뉴", menus[s.featuredMenu]?.name || "—") +
+    row("판매 완료", s.served + "건") + row("최고 콤보", (s.dayBestCombo || 0) + "콤보") +
+    row("탄 음식 제공", s.burntServed + "건") +
     row("시간 초과", s.missed + "건") + row("마감 미제공", s.unservedAtClose + "건") +
     row("오늘 평점", ratingText(s) + " · " + s.reviewCount + "건") + row("오늘 매출", money(s.sales));
+}
+function staffLevelDesc(level) {
+  if (level === 0) return 'Lv.1 채용 · 모든 조리대 단계당 -0.5초 단축';
+  if (level === 1) return 'Lv.2 불 조절 · 음식 타기 +3초 · 타이밍 구간 +12%';
+  if (level === 2) return 'Lv.3 자동 밑준비 · 빈 화구 1.5초 후 첫 주문 자동 시작';
+  return '최고 숙련 · 단계 -0.5초 · 보온 +3초 · 구간 +12% · 자동 밑준비';
 }
 function renderManage() {
   const busy = game.stations.some(Boolean);
@@ -361,33 +472,86 @@ function renderManage() {
     const max = level === equipment.length - 1, cost = stoveUpgradeCost(level);
     return '<div class="item"><div class="upgrade-art"><img src="' + art("stove", level) + '" alt=""></div>' +
       '<div class="item-copy"><b>' + (slot + 1) + '번 · ' + equipment[level] + '</b><small>' + (level + 1) +
-      '단계 · 화구 1개 · 단계당 ' + stepDuration(game, slot) / 1000 + '초</small></div>' +
+      '단계 · 화구 1개 · 기본 단계당 ' + stepDuration(game, slot) / 1000 + '초</small></div>' +
       '<button class="buy" data-stove="' + slot + '" ' + (max || game.stations[slot] || game.balance < cost ? 'disabled' : '') + '>' +
       (max ? '최고 단계' : game.stations[slot] ? '조리 중' : '개선 ' + money(cost)) + '</button></div>';
   }).join("");
   const descriptions = {
     interior: interiors[game.interior] + (game.interior < 2 ? ' → ' + interiors[game.interior + 1] : '') + ' · 카운터와 주방 벽 마감',
     quality: '레벨당 모든 메뉴 판매가 +' + money(menuPriceBoost),
-    staff: '모든 조리대 · 각 단계 ' + staffStepReduction / 1000 + '초 단축',
+    staff: staffLevelDesc(game.staff),
     promotion: '레벨당 손님 입장 간격 ' + promotionBoost + '% 단축',
     hospitality: '레벨당 정상 음식 평점 +' + hospitalityBonus / 10 + '점 · 최대 5점'
   };
+  const immediateFeatured = !game.closed && game.arrived === 0 && game.served === 0;
+  const activeFeatured = immediateFeatured ? game.featuredMenu : (game.nextFeaturedMenu ?? game.featuredMenu);
+  const forecast = weathers[immediateFeatured ? game.weather : game.nextWeather] || weathers.clear;
+  const featuredGrid = '<div class="featured-box"><div class="featured-head"><b>' +
+    (immediateFeatured ? '오늘의 추천 메뉴 선택' : '내일의 추천 메뉴 예약') +
+    '</b><small>' + (immediateFeatured ? '오늘 날씨: ' : '내일 예보: ') + forecast.name + ' (' + forecast.desc + ')</small></div>' +
+    '<div class="featured-grid">' + menus.map((m, i) => {
+      const selected = activeFeatured === i;
+      const synergy = forecast.menus.includes(i);
+      return '<button class="featured-tile' + (selected ? ' active' : '') + (synergy ? ' synergy' : '') +
+        '" data-featured="' + i + '" aria-pressed="' + selected + '">' + dish(i) +
+        '<span>' + m.name + '</span>' + (synergy ? '<em>시너지</em>' : '<small>+' + money(featuredPriceBonus) + '</small>') + '</button>';
+    }).join("") + '</div></div>';
   $("manage").innerHTML = '<h2>' + icon("upgrade") + '가게 관리</h2><div class="summary">' +
-    row("조리 직원", game.staff ? "1명" : "미채용") + row("보유 자금", money(game.balance)) + '</div>' +
+    row("조리 직원", game.staff ? "Lv." + game.staff + " / 3" : "미채용") +
+    row("오늘 추천 메뉴", menus[game.featuredMenu].name) +
+    row("보유 자금", money(game.balance)) + '</div>' +
     '<button class="decor-entry" id="open-decor"><span class="upgrade-art">' + icon("store") +
-    '</span><span class="item-copy"><b>가게 꾸미기</b><small>가게 이름 · 차양 · 간판 · 업적 칭호</small></span>' + icon("chevron") + '</button><h3>가스레인지</h3>' + stoves +
+    '</span><span class="item-copy"><b>가게 꾸미기</b><small>가게 이름 · 차양 · 간판 · 업적 칭호</small></span>' + icon("chevron") + '</button>' +
+    '<h3>추천 메뉴</h3>' + featuredGrid + '<h3>가스레인지</h3>' + stoves +
     (game.stoveLevels.length < stoveLimit ? '<div class="item"><div class="item-copy"><b>2번 렌지 설치</b><small>1단계 단일 화구 · 두 주문 동시 조리</small></div><button class="buy" data-install ' +
       (game.balance < installCost ? 'disabled' : '') + '>설치 ' + money(installCost) + '</button></div>' : '') + '<h3>가게 개선</h3>' +
     upgrades.map(u => {
       const max = game[u.key] >= u.max;
-      const level = u.key === "staff" ? "" : ' <em>Lv.' + game[u.key] + '/' + u.max + '</em>';
-      const done = u.key === "staff" ? "채용 완료" : "개선 완료";
+      const level = ' <em>Lv.' + game[u.key] + '/' + u.max + '</em>';
+      const done = u.key === "staff" ? "최고 숙련" : "개선 완료";
       const cost = upgradeCost(game, u);
       return '<div class="item"><div class="upgrade-art">' + icon(u.icon) +
         '</div><div class="item-copy"><b>' + u.name + level + '</b><small>' + descriptions[u.key] +
         '</small></div><button class="buy" data-buy="' + u.key + '" ' + (max || (busy && u.key !== "interior") || game.balance < cost ? "disabled" : "") + '>' +
         (max ? done : money(cost)) + '</button></div>';
     }).join("") + (busy ? '<p>조리 중인 주문을 마치면 개선할 수 있어요.</p>' : '');
+}
+
+function renderRegulars() {
+  const visits = game.records.guestVisits;
+  const affinities = game.records.guestAffinity;
+  const metCount = visits.filter(v => v > 0).length;
+  const regularCount = affinities.filter(a => guestRank(a).level >= 1).length;
+  const familyCount = affinities.filter(a => guestRank(a).level >= 3).length;
+  const cards = guestProfiles.map((profile, idx) => {
+    const visited = (visits[idx] || 0) > 0;
+    const aff = affinities[idx] || 0;
+    const rank = guestRank(aff);
+    const nextRank = affinityRanks.find(r => r.min > aff);
+    const progressMax = nextRank ? nextRank.min : affinityRanks[affinityRanks.length - 1].min;
+    const rankLabel = !visited ? "미방문" : rank.name;
+    const perk = rank.level === 0 ? "만족 서빙으로 친밀도 쌓기" :
+      rank.level === 1 ? "최애 메뉴 서빙 팁 +" + money(rank.tip) :
+      rank.level === 2 ? "모든 메뉴 서빙 팁 +" + money(rank.tip) :
+      "모든 메뉴 팁 +" + money(rank.tip) + " · 평점 +0.2";
+    return '<li class="regular-card rank-' + (visited ? rank.level : 'none') + '">' +
+      '<div class="regular-top"><span class="portrait guest-' + idx + '"><img src="' + art("guest", idx) + '" alt=""></span>' +
+      '<div class="regular-meta"><div class="regular-title"><strong>' + profile.name + '</strong><span class="regular-badge">' + rankLabel + '</span></div>' +
+      '<small class="regular-bio">' + profile.bio + '</small>' +
+      '<div class="regular-fav">' + dish(profile.favorite) + '<span>최애: <b>' + menus[profile.favorite].name + '</b></span></div></div></div>' +
+      '<div class="regular-progress"><progress value="' + Math.min(aff, progressMax) + '" max="' + progressMax + '"></progress>' +
+      '<span>' + (nextRank ? '호감도 ' + aff + ' / ' + nextRank.min : '최고 친밀도 (' + aff + ')') + ' · 방문 ' + (visits[idx] || 0) + '회</span></div>' +
+      '<p class="regular-perk">' + perk + '</p>' +
+      '<blockquote class="regular-quote' + (rank.level >= 1 ? '' : ' locked') + '">' +
+      (rank.level >= 1 ? '“' + profile.quote + '”' : '단골(호감도 3)이 되면 한마디가 해금돼요.') + '</blockquote></li>';
+  }).join("");
+  $("regulars").innerHTML = '<div class="achievement-head"><h2>' + icon("heart") + '단골 도감</h2><b>단골 ' +
+    regularCount + ' / ' + guestProfiles.length + '명</b></div><div class="summary">' +
+    row("만난 이웃", metCount + " / " + guestProfiles.length + "명") +
+    row("단골 손님", regularCount + "명") +
+    row("골목 가족", familyCount + "명") +
+    row("역대 최고 콤보", (game.records.bestCombo || 0) + "콤보") +
+    '</div><p>평점 4점 이상 서빙 시 호감도 +1, 손님의 최애 메뉴를 만족시키면 호감도가 +2 오릅니다.</p><ul class="regular-list">' + cards + '</ul>';
 }
 
 function openDecor() {
@@ -427,20 +591,25 @@ function openDecor() {
   $("decor-title").onchange = e => { choice.title = e.target.value; updatePreview(); };
   apply.onclick = () => {
     if (apply.disabled || !applyDecor(game, choice)) return;
-    save(); render(); $("modal").close(); tone(750); notify("가게 꾸미기를 적용했어요.");
+    save(); render(); $("modal").close(); sfx("upgrade"); notify("가게 꾸미기를 적용했어요.");
     $("open-decor").focus();
   };
   updatePreview();
 }
 function renderJournal() {
   $("journal").innerHTML = '<h2>' + icon("book") + '영업 일지</h2><h3>' + game.day + '일차 장부</h3><div class="summary">' +
-    row("방문한 손님", game.arrived + "명") + dayStats(game) + goalStats(game) + row("누적 판매", game.total + "건") + '</div><h3>지난 영업</h3>' +
-    (game.history.length ? game.history.slice().reverse().map(d => '<div class="item"><div class="item-copy"><b>' + d.day + '일차</b><small>판매 ' +
-      d.served + '건 · 시간 초과 ' + d.missed + '건' + (d.bonus ? ' · 분점 수익 ' + money(d.bonus) : '') + '</small>' +
-      (d.reviewCount === undefined ? '' : '<small>평점 ' + ratingText(d) + ' (' + d.reviewCount + '건) · 탄 음식 ' + d.burntServed +
-        '건 · 마감 미제공 ' + d.unservedAtClose + '건</small>') +
-      (d.goalReward ? '<small>목표 보상 +' + money(d.goalReward) + '</small>' : '') +
-      '</div><strong>' + money(d.sales + (d.bonus || 0) + (d.goalReward || 0)) + '</strong></div>').join("")
+    row("방문한 손님", game.arrived + "명") + dayStats(game) + goalStats(game) +
+    row("누적 판매", game.total + "건") + row("역대 최고 콤보", (game.records.bestCombo || 0) + "콤보") + '</div><h3>지난 영업</h3>' +
+    (game.history.length ? game.history.slice().reverse().map(d => {
+      const w = d.weather && weathers[d.weather] ? ' · ' + weathers[d.weather].name : '';
+      const comboText = d.bestCombo ? ' · 최고 ' + d.bestCombo + '콤보' : '';
+      return '<div class="item"><div class="item-copy"><b>' + d.day + '일차' + w + '</b><small>판매 ' +
+        d.served + '건 · 시간 초과 ' + d.missed + '건' + comboText + (d.bonus ? ' · 분점 수익 ' + money(d.bonus) : '') + '</small>' +
+        (d.reviewCount === undefined ? '' : '<small>평점 ' + ratingText(d) + ' (' + d.reviewCount + '건) · 탄 음식 ' + d.burntServed +
+          '건 · 마감 미제공 ' + d.unservedAtClose + '건</small>') +
+        (d.goalReward ? '<small>목표 보상 +' + money(d.goalReward) + '</small>' : '') +
+        '</div><strong>' + money(d.sales + (d.bonus || 0) + (d.goalReward || 0)) + '</strong></div>';
+    }).join("")
       : '<p>하루를 정산하면 영업 기록이 남아요.</p>');
 }
 function renderAchievements() {
@@ -461,8 +630,13 @@ function renderAchievements() {
     achievements.filter(a => a.menu !== undefined).map(renderCard).join("") + '</ul>';
 }
 function menuTiles(selected = null) {
-  return menus.map((m, i) => '<button class="menu-tile" data-menu="' + i + '" aria-pressed="' + (selected === i) + '">' +
-    dish(i) + '<span>' + m.name + '</span><small>' + money(salePrice(game, i)) + '</small></button>').join("");
+  return menus.map((m, i) => {
+    const feat = game.featuredMenu === i;
+    const hot = weathers[game.weather]?.menus.includes(i);
+    const mark = feat ? ' ★추천' : hot ? ' ·인기' : '';
+    return '<button class="menu-tile' + (feat ? ' featured' : '') + '" data-menu="' + i + '" aria-pressed="' + (selected === i) + '">' +
+      dish(i) + '<span>' + m.name + '</span><small>' + money(salePrice(game, i)) + mark + '</small></button>';
+  }).join("");
 }
 function render() {
   $("day").textContent = game.day + "일차";
@@ -483,6 +657,7 @@ function render() {
   $("sound").setAttribute("aria-label", $("sound").title);
   paint($("sound"), icon(game.sound ? "sound" : "muted"));
   if (page === "manage") { renderManage(); return; }
+  if (page === "regulars") { renderRegulars(); return; }
   if (page === "journal") { renderJournal(); return; }
   if (page === "achievements") { renderAchievements(); return; }
   renderScene(); renderQueue(); renderKitchen();
@@ -499,11 +674,31 @@ function sync() {
     const left = events.filter(e => e.type === "left");
     for (const event of left) showGuestReaction(event.order.id, 1);
     save(); render();
-    if (events.some(e => e.type === "burnt")) { tone(185); notify("음식이 탔어요! 다시 조리하거나 손님에게 건넬 수 있어요."); }
-    else if (left.length === 1) notify(guests[left[0].order.guest] + " 손님이 기다리다 떠났어요. ★ 1점");
-    else if (left.length > 1) notify("손님 " + left.length + "명이 기다리다 떠났어요. 각각 ★ 1점");
+    const burntEvent = events.find(e => e.type === "burnt");
+    const autoEvent = events.find(e => e.type === "staff-auto");
+    if (burntEvent) {
+      sfx("burnt");
+      const slot = game.stations.findIndex(k => k?.ticket === burntEvent.ticket);
+      spawnFloat("음식이 탔어요!", "burnt", stoveAnchorX(slot < 0 ? 0 : slot), 42);
+      notify("음식이 탔어요! 다시 조리하거나 손님에게 건넬 수 있어요.");
+    } else if (left.length === 1) {
+      sfx("error");
+      spawnFloat("★1 시간 초과", "burnt", 41, 44);
+      notify(guests[left[0].order.guest] + " 손님이 기다리다 떠났어요. ★ 1점");
+    } else if (left.length > 1) {
+      sfx("error");
+      spawnFloat("손님 " + left.length + "명 퇴장", "burnt", 41, 44);
+      notify("손님 " + left.length + "명이 기다리다 떠났어요. 각각 ★ 1점");
+    } else if (autoEvent) {
+      sfx("staff-auto");
+      spawnFloat("직원 자동 준비!", "mint", stoveAnchorX(autoEvent.slot), 42);
+      notify("직원이 " + menus[autoEvent.order.menu].name + " 1단계를 시작했어요.");
+    } else if (events.some(e => e.type === "prepared")) {
+      sfx("prepared");
+    } else if (events.some(e => e.type === "arrival")) {
+      sfx("arrival");
+    }
     if (game.closed) settlement();
-    else if (events.some(e => e.type === "prepared")) tone(640);
   } else {
     refreshTimers();
     if (now - lastSave > 3000) save();
@@ -511,7 +706,8 @@ function sync() {
 }
 function setClock() {
   const modal = $("modal");
-  running = !document.hidden && page === "play" && !game.celebration && (!modal.open || modal.dataset.kind === "picker");
+  running = !document.hidden && page === "play" && !game.celebration && !game.pendingTip &&
+    (!modal.open || modal.dataset.kind === "picker");
   $("scene").toggleAttribute("data-paused", !running || game.closed);
   if (ownerWalk) {
     if (running) ownerWalk.play();
@@ -545,28 +741,109 @@ function showCelebration() {
     money(dailyGoalReward) + '</small></div></li>' : '') + unlocked.map(a =>
     '<li>' + icon("trophy") + '<div><strong>' + a.title + '</strong><small class="achievement-condition">' + a.name +
     '</small></div></li>').join("");
+  sfx("celebrate");
   dialog(title, '<ul class="celebration-list">' + entries + '</ul><p>확인할 때까지 영업이 멈춰요.</p>' +
     '<button class="primary" id="confirm-celebration">확인하고 계속하기</button>', "celebration");
   const confirm = $("confirm-celebration");
   confirm.onclick = () => $("modal").close();
   confirm.focus();
 }
+function showSpecialTip() {
+  const pending = game.pendingTip;
+  if (!pending || $("modal").open) return;
+  const available = !!window.AndroidAds?.showRewardedAd;
+  dialog("특별 손님의 팁", '<div class="special-reward">' + icon("star") + '<strong>팁 +' +
+    money(pending.amount) + '</strong><span>' + guests[pending.guest] + ' 손님이 ' + menus[pending.menu].name +
+    ' 음식값의 ' + specialTipMultiplier + '배를 팁으로 드려요.</span></div><p>광고를 끝까지 보면 팁을 받아요. 선택하는 동안 영업 시간은 멈춥니다.</p>' +
+    '<button class="primary" id="watch-special-ad"' + (available ? '' : ' disabled') + '>광고 보고 팁 받기</button>' +
+    (available ? '<p id="ad-status" role="status"></p>' : '<p>광고 시청은 Android 앱에서 이용할 수 있어요.</p>') +
+    '<button class="secondary" id="skip-special-ad">취소하고 계속하기</button>', "special-tip");
+  $("watch-special-ad").onclick = () => {
+    if (adPending || !game.pendingTip) return;
+    adPending = true;
+    $("watch-special-ad").disabled = true;
+    $("skip-special-ad").disabled = true;
+    $("dismiss").disabled = true;
+    $("ad-status").textContent = "광고를 준비하고 있어요…";
+    try { window.AndroidAds.showRewardedAd(pending.ticket); }
+    catch { window.onRewardedAdResult(pending.ticket, false, "unavailable"); }
+  };
+  $("skip-special-ad").onclick = () => $("modal").close();
+  $("watch-special-ad").focus();
+}
+window.onRewardedAdResult = (ticket, rewarded, reason) => {
+  if (!adPending || !game.pendingTip || game.pendingTip.ticket !== ticket) return;
+  adPending = false;
+  if (rewarded) {
+    const amount = resolveSpecialTip(game, ticket, true);
+    save();
+    $("modal").close();
+    render();
+    sfx("celebrate");
+    spawnFloat("특별 팁 +" + money(amount), "fever", 42, 36);
+    notify("특별 손님 팁 +" + money(amount) + "을 받았어요!");
+  } else if ($("modal").open && $("modal").dataset.kind === "special-tip") {
+    $("watch-special-ad").disabled = false;
+    $("skip-special-ad").disabled = false;
+    $("dismiss").disabled = false;
+    $("ad-status").textContent = reason === "unavailable" ? "광고를 불러오지 못했어요. 다시 시도하거나 취소하세요." :
+      "광고 시청이 완료되지 않았어요. 다시 시도하거나 취소하세요.";
+    $("watch-special-ad").focus();
+  } else showSpecialTip();
+  setClock();
+};
 function settlement() {
+  const forecast = weathers[game.nextWeather] || weathers.clear;
+  let chosen = game.nextFeaturedMenu ?? (forecast.menus[0] ?? game.featuredMenu);
+  const pickerHtml = '<div class="forecast-card">' + icon(forecast.icon) + '<div><strong>내일 예보 · ' +
+    forecast.name + '</strong><small>' + forecast.desc + '</small></div></div>' +
+    '<h3>내일의 추천 메뉴 선택 (+' + money(featuredPriceBonus) + ')</h3><div class="featured-grid" id="settle-featured">' +
+    menus.map((m, i) => {
+      const synergy = forecast.menus.includes(i);
+      return '<button type="button" class="featured-tile' + (chosen === i ? ' active' : '') + (synergy ? ' synergy' : '') +
+        '" data-pick-featured="' + i + '" aria-pressed="' + (chosen === i) + '">' + dish(i) +
+        '<span>' + m.name + '</span>' + (synergy ? '<em>시너지</em>' : '<small>+' + money(featuredPriceBonus) + '</small>') + '</button>';
+    }).join("") + '</div>';
   dialog(game.day + "일차 영업 마감", '<div class="summary">' + row("방문한 손님", game.arrived + "명") +
-    dayStats(game) + goalStats(game) +
-    '</div><button class="primary" id="next-day">다음 날 영업 시작 ' + icon("chevron") + '</button>');
-  $("next-day").onclick = () => { if (!game.closed) return; settleDay(game); save(); $("modal").close(); render(); notify(game.day + "일차 영업을 시작해요."); };
+    dayStats(game) + goalStats(game) + '</div>' + pickerHtml +
+    '<button class="primary" id="next-day">다음 날 영업 시작 ' + icon("chevron") + '</button>', "settlement");
+  $("settle-featured").onclick = e => {
+    const btn = e.target.closest("[data-pick-featured]");
+    if (!btn) return;
+    chosen = +btn.dataset.pickFeatured;
+    for (const tile of $("settle-featured").querySelectorAll("[data-pick-featured]")) {
+      const active = +tile.dataset.pickFeatured === chosen;
+      tile.classList.toggle("active", active);
+      tile.setAttribute("aria-pressed", active);
+    }
+    sfx("step");
+  };
+  $("next-day").onclick = () => {
+    if (!game.closed) return;
+    settleDay(game, chosen);
+    save(); $("modal").close(); render();
+    sfx("upgrade");
+    notify(game.day + "일차 영업 시작! " + weathers[game.weather].name + " · 추천 " + menus[game.featuredMenu].name);
+  };
 }
 function cookbook(selected = 0) {
   const m = menus[selected];
-  const timingHint = '<p>두 번째 단계의 표시가 노란 구간에 오면 ‘' + m.timing.action + '’ 버튼을 누르세요. 성공하면 바로 3단계로 넘어가고, 서빙할 때 팁 ' + money(timingTip) + '을 받아요.</p>';
-  dialog("메뉴판", '<div class="book-grid">' + menuTiles(selected) + '</div><div class="book-detail"><b>' + m.name + '</b><ol>' +
+  const stepSec = (stepDuration(game, 0, selected) / 1000).toFixed(2).replace(/\.?0+$/, "");
+  const burnSec = (burnDuration(game, selected) / 1000).toFixed(1).replace(/\.0$/, "");
+  const tipVal = dishTimingTip(game, selected);
+  const badges = [];
+  if (game.featuredMenu === selected) badges.push('<span class="order-tag feat-tag">오늘의 추천 +' + money(featuredPriceBonus) + '</span>');
+  if (weathers[game.weather]?.menus.includes(selected)) badges.push('<span class="order-tag weather-tag">' + weathers[game.weather].name + ' +' + money(weathers[game.weather].priceBonus) + '</span>');
+  const timingHint = '<p>특징: <b>' + m.trait + '</b> · 단계당 ' + stepSec + '초 · 타기까지 ' + burnSec + '초 · 타이밍 성공 팁 ' + money(tipVal) + '</p>' +
+    '<p>두 번째 단계의 표시가 노란 구간에 오면 ‘' + m.timing.action + '’ 버튼을 누르세요. 성공하면 바로 3단계로 넘어가고, 서빙할 때 팁을 받아요.</p>';
+  dialog("메뉴판", '<div class="book-grid">' + menuTiles(selected) + '</div><div class="book-detail"><div class="book-detail-head"><b>' +
+    m.name + '</b>' + (badges.length ? '<div class="order-tags">' + badges.join("") + '</div>' : '') + '</div><ol>' +
     m.steps.map(s => '<li>' + s + '</li>').join("") + '</ol>' + timingHint + '</div>', "book");
   for (const b of $("dialog-body").querySelectorAll("[data-menu]")) {
     b.onclick = () => cookbook(+b.dataset.menu);
   }
 }
-function toggleSound() { game.sound = !game.sound; save(); render(); tone(640); }
+function toggleSound() { game.sound = !game.sound; save(); render(); sfx("prepared"); }
 
 function refreshPickerOrders() {
   if (!$("modal").open || $("modal").dataset.kind !== "picker") return;
@@ -600,9 +877,9 @@ function chooseDish(slot) {
     if (!$("modal").open || $("modal").dataset.kind !== "picker") return;
     if (!placeDish(game, slot, +tile.dataset.menu)) {
       $("picker-hint").textContent = "주문을 확인하세요";
-      tone(230); return;
+      sfx("error"); return;
     }
-    save(); $("modal").close(); tone(410); render();
+    save(); $("modal").close(); sfx("place"); render();
   };
 }
 
@@ -610,11 +887,11 @@ function settings() {
   dialog("설정", '<div class="stat"><span>배경음악</span><button id="toggle-music" class="buy" aria-label="배경음악" aria-pressed="' +
     game.music + '">' + (game.music ? "켜짐" : "꺼짐") +
     '</button></div><div class="stat"><span>효과음</span><button id="toggle-audio" class="buy">' + (game.sound ? "켜짐" : "꺼짐") +
-    '</button></div><h3>영업 방법</h3><p>오전 7시부터 밤 10시까지 영업해요. 하루는 플레이 시간 3분이고, 손님은 점심과 저녁 식사 시간에 더 자주 찾아와요.</p>' +
-    '<p>두 번째 조리 단계의 노란 구간에 맞춰 누르면 서빙할 때 팁 ' + money(timingTip) + '을 받아요. 조리 시작 후 12초가 지나면 음식이 타요. 탄 음식은 1점과 0원, 주문 후 10초 안에 내면 5점, 그 밖의 정상 음식은 3·4·5점 중 하나를 기본 평점으로 받아요.</p>' +
-    '<p>최대 5명이 기다려요. 성미 급한 손님은 ' +
-    tempers.hasty.seconds + '초, 보통 손님은 ' + tempers.regular.seconds + '초, 느긋한 손님은 ' + tempers.easy.seconds +
-    '초 동안 기다려요. 기다리다 떠난 손님은 1점을 남겨요. 조리대에서 메뉴를 고르는 동안에도 영업 시간이 흐릅니다.</p><button id="reset" class="secondary">처음부터 시작</button>');
+    '</button></div><h3>영업 방법</h3><p>오전 7시부터 밤 10시까지 영업해요. 하루는 플레이 시간 3분이고, 매일 날씨와 골목 소식에 따라 인기 메뉴와 보너스가 달라집니다.</p>' +
+    '<p>마감 정산에서 내일 예보를 보고 <b>추천 메뉴</b>를 고르면 판매가 +500원 보너스를 받아요. 각 메뉴마다 조리 시간, 보온 시간, 타이밍 팁이 다릅니다.</p>' +
+    '<p>별점 5점 또는 타이밍 성공을 이어가면 <b>연속 콤보</b>가 쌓이고, 3콤보부터 추가 팁, 5콤보마다 20초간 <b>피버 타임</b>(조리 속도↑ · 타이밍 팁 2배)이 발동해요.</p>' +
+    '<p>21명 이웃마다 최애 메뉴가 있어요. 만족 서빙으로 친밀도를 높이면 <b>단골 도감</b> 대사와 추가 팁이 해금됩니다. 직원은 최대 Lv.3까지 성장해 보온 시간·타이밍 구간·자동 밑준비를 도와줘요.</p>' +
+    '<p>가끔 특별 손님이 방문해요. 음식을 정상적으로 서빙한 뒤 광고를 끝까지 보면 음식값의 5배를 팁으로 받습니다.</p><button id="reset" class="secondary">처음부터 시작</button>');
   $("toggle-music").onclick = e => {
     game.music = !game.music;
     e.currentTarget.textContent = game.music ? "켜짐" : "꺼짐";
@@ -635,17 +912,24 @@ $("kitchen").addEventListener("click", e => {
   if (button.hasAttribute("data-settle")) { if (game.closed) settlement(); return; }
   if (button.hasAttribute("data-choose")) { chooseDish(+button.dataset.choose); return; }
   if (button.hasAttribute("data-remake")) {
-    if (remakeDish(game, +button.dataset.remake)) { save(); render(); tone(410); }
+    if (remakeDish(game, +button.dataset.remake)) { save(); render(); sfx("place"); }
     return;
   }
   if (button.hasAttribute("data-timing")) {
-    const result = tryTiming(game, +button.dataset.timing);
+    const ticket = +button.dataset.timing;
+    const slot = game.stations.findIndex(k => k?.ticket === ticket);
+    const order = game.queue.find(q => q.id === ticket);
+    const result = tryTiming(game, ticket);
     if (!result) return;
     save(); render();
     if (result === "hit") {
-      tone(880); notify("타이밍 성공! 3단계로 넘어갔어요.", "timing-success");
+      sfx("timing-hit");
+      const bonus = order ? dishTimingTip(game, order.menu) : timingTip;
+      spawnFloat("완벽! +" + money(bonus), "mint", stoveAnchorX(slot < 0 ? 0 : slot), 42);
+      notify("타이밍 성공! 3단계로 넘어갔어요.", "timing-success");
     } else {
-      tone(230); notify("타이밍을 놓쳤어요. 일반 메뉴로 완성돼요.");
+      sfx("timing-miss");
+      notify("타이밍을 놓쳤어요. 일반 메뉴로 완성돼요.");
     }
     return;
   }
@@ -654,11 +938,27 @@ $("kitchen").addEventListener("click", e => {
     if (!result) return;
     showGuestReaction(+button.dataset.serve, result.stars);
     save(); render();
-    tone(result.burnt ? 185 : 880);
+    if (result.burnt) {
+      sfx("burnt");
+      spawnFloat("탄 음식 ★1", "burnt", 41, 44);
+    } else {
+      sfx(result.feverTriggered ? "fever" : result.rankUp ? "rank-up" : "serve");
+      spawnFloat("+" + money(result.amount), "gold", 41, 44, 0);
+      if (result.tip > 0) spawnFloat("TIP +" + money(result.tip), "mint", 45, 34, 120);
+      if (result.feverTriggered) spawnFloat("🔥 피버 타임!", "fever", 54, 24, 200);
+      else if (result.combo >= 3) spawnFloat(result.combo + " COMBO!", "coral", 36, 32, 200);
+      if (result.rankUp) spawnFloat("♥ " + result.rankUp.name + " 달성!", "heart", 48, 22, 280);
+      else if (result.favorite && result.stars >= 4) spawnFloat("♥ 최애 만족!", "heart", 35, 24, 260);
+    }
     const payout = result.burnt ? "탄 음식 0원" : "+" + money(result.amount);
-    const tip = result.tip ? " (팁 " + money(result.tip) + " 포함)" : "";
-    notify(guests[result.guest] + " · " + result.stars + "점 · " + payout + tip);
-    showCelebration();
+    const extras = [];
+    if (result.tip) extras.push("팁 " + money(result.tip));
+    if (result.combo >= 3) extras.push(result.combo + "콤보");
+    if (result.feverTriggered) extras.push("피버 발동!");
+    if (result.rankUp) extras.push(guests[result.guest] + " " + result.rankUp.name + " 승급!");
+    const suffix = extras.length ? " (" + extras.join(" · ") + ")" : "";
+    notify(guests[result.guest] + " · " + result.stars + "점 · " + payout + suffix, result.feverTriggered ? "timing-success" : "");
+    showSpecialTip(); showCelebration();
   } else {
     const ticket = +button.dataset.ticket, order = game.queue.find(q => q.id === ticket);
     const k = game.stations.find(k => k?.ticket === ticket);
@@ -666,18 +966,31 @@ $("kitchen").addEventListener("click", e => {
     if (!prepareStep(game, ticket, +button.dataset.step)) {
       const next = menus[order.menu].steps[k.step];
       if (next) notify("먼저 ‘" + next + "’ 단계를 진행하세요.");
+      sfx("error");
       return;
     }
-    tone(410); save(); render();
+    sfx("step"); save(); render();
   }
 });
 $("manage").onclick = e => {
   if (e.target.closest("#open-decor")) { openDecor(); return; }
+  const feat = e.target.closest("[data-featured]");
+  if (feat) {
+    const menuIndex = +feat.dataset.featured;
+    const immediate = !game.closed && game.arrived === 0 && game.served === 0;
+    if (setFeaturedMenu(game, menuIndex, !immediate)) {
+      save(); render(); sfx("step");
+      notify(immediate
+        ? "오늘의 추천 메뉴를 " + menus[menuIndex].name + "(으)로 바꿨어요."
+        : "내일의 추천 메뉴를 " + menus[menuIndex].name + "(으)로 예약했어요.");
+    }
+    return;
+  }
   const stove = e.target.closest("[data-stove], [data-install]");
   if (stove && !stove.disabled) {
     const install = stove.hasAttribute("data-install");
     if (install ? installStove(game) : upgradeStove(game, Number(stove.dataset.stove))) {
-      save(); render(); tone(750); notify(install ? "두 번째 렌지를 설치했어요." : "렌지를 한 단계 개선했어요.");
+      save(); render(); sfx("upgrade"); notify(install ? "두 번째 렌지를 설치했어요." : "렌지를 한 단계 개선했어요.");
     }
     return;
   }
@@ -685,9 +998,16 @@ $("manage").onclick = e => {
   if (!btn || btn.disabled) return;
   const u = upgrades.find(v => v.key === btn.dataset.buy);
   if (!u || !buyUpgrade(game, u.key)) return;
-  save(); render(); tone(750);
-  if (u.key === "staff") notify("직원을 채용했어요. 각 조리 단계가 " + staffStepReduction / 1000 + "초 짧아져요!");
-  else if (u.key === "interior") notify(interiors[game.interior] + " 인테리어를 완성했어요!");
+  save(); render(); sfx("upgrade");
+  if (u.key === "staff") {
+    const msgs = [
+      "",
+      "직원을 채용했어요! 모든 조리 단계가 0.5초 짧아져요.",
+      "직원 불 조절 숙련! 음식 보온 +3초 · 타이밍 구간이 넓어져요.",
+      "직원 자동 밑준비 습득! 빈 화구에서 첫 주문을 자동으로 시작해요."
+    ];
+    notify(msgs[game.staff] || "직원 숙련도가 올랐어요!");
+  } else if (u.key === "interior") notify(interiors[game.interior] + " 인테리어를 완성했어요!");
   else notify(u.name + " 개선 완료!");
 };
 document.querySelectorAll("i[data-icon]").forEach(el => el.innerHTML = icon(el.dataset.icon));
@@ -695,16 +1015,21 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => changePag
 $("cookbook").onclick = () => { sync(); cookbook(); };
 $("settings").onclick = () => { sync(); settings(); };
 $("sound").onclick = toggleSound;
-$("dismiss").onclick = () => $("modal").close();
-$("modal").onclick = e => { if (e.target === $("modal")) $("modal").close(); };
+$("dismiss").onclick = () => { if (!adPending) $("modal").close(); };
+$("modal").onclick = e => { if (e.target === $("modal") && !adPending) $("modal").close(); };
+$("modal").addEventListener("cancel", e => { if (adPending) e.preventDefault(); });
 $("modal").addEventListener("close", () => {
   const modal = $("modal");
   if (modal.open) return;
+  if (modal.dataset.kind === "special-tip" && game.pendingTip && !adPending) {
+    resolveSpecialTip(game, game.pendingTip.ticket, false);
+    save();
+  }
   if (modal.dataset.kind === "celebration" && game.celebration) {
     game.celebration = null;
     save();
   }
-  showCelebration();
+  showSpecialTip(); showCelebration();
   setClock();
 });
 document.addEventListener("visibilitychange", () => {
@@ -732,6 +1057,7 @@ window.addEventListener("storage", e => {
     $("modal").dataset.kind = "";
     $("modal").close();
   }
-  render(); showCelebration(); setClock(); updateMusic();
+  adPending = false;
+  render(); showSpecialTip(); showCelebration(); setClock(); updateMusic();
 });
-save(); render(); showCelebration(); setInterval(sync, 100);
+save(); render(); showSpecialTip(); showCelebration(); setInterval(sync, 100);

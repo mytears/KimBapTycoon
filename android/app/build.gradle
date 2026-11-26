@@ -16,10 +16,23 @@ android {
         applicationId 'com.byeolbam.bunsik'
         minSdk 26
         targetSdk 35
-        versionCode 13
-        versionName '1.12'
+        versionCode 14
+        versionName '1.13'
+        manifestPlaceholders.admobAppId = project.findProperty('admobAppId') ?: 'ca-app-pub-3940256099942544~3347511713'
+        resValue 'string', 'rewarded_ad_unit_id', project.findProperty('rewardedAdUnitId') ?: 'ca-app-pub-3940256099942544/5224354917'
     }
     sourceSets.main.assets.srcDir(layout.buildDirectory.dir('generated/webAssets'))
 }
 
 tasks.named('preBuild').configure { dependsOn webAssets }
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    doFirst {
+        if (!project.hasProperty('admobAppId') || !project.hasProperty('rewardedAdUnitId')) {
+            throw new GradleException('Release builds require -PadmobAppId and -PrewardedAdUnitId')
+        }
+    }
+}
+
+dependencies {
+    implementation 'com.google.android.gms:play-services-ads:25.5.0'
+}

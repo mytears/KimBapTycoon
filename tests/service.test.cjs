@@ -11,8 +11,10 @@ function engine(random = () => .5) {
   math.random = random;
   return vm.runInNewContext(source + `
     ;({ fresh, restore, advance, placeDish, prepareStep, remakeDish, serve, settleDay,
-        clockMinutes, daypartAt, burnDelay, stepDuration, shiftDuration, scheduleArrival,
-        tryTiming, timingProgress, timingTip, dumplingMenu, menus, buyUpgrade, salePrice,
+        clockMinutes, daypartAt, burnDelay, burnDuration, stepDuration, shiftDuration, scheduleArrival,
+        tryTiming, timingProgress, timingWindowFor, timingTip, dishTimingTip, specialTipMultiplier, resolveSpecialTip,
+        dumplingMenu, menus, buyUpgrade, salePrice, setFeaturedMenu, featuredPriceBonus,
+        isFever, feverDuration, guestProfiles, guestRank, weathers, dailyGoals, staffAutoDelay,
         achievements, achievementCounts, achievementProgress, goalReward, dailyGoalReward,
         earnedTitles, decorPrice, applyDecor, installStove, upgradeStove, shopName, guests })
   `, { Math: math });
@@ -24,10 +26,12 @@ function withOrder(e) {
   return s;
 }
 function finish(e, s, ticket) {
-  e.advance(s, e.stepDuration(s));
+  const slot = s.stations.findIndex(k => k?.ticket === ticket);
+  const order = s.queue.find(q => q.id === ticket);
+  e.advance(s, e.stepDuration(s, slot, order.menu));
   for (const step of [1, 2]) {
     assert.ok(e.prepareStep(s, ticket, step));
-    e.advance(s, e.stepDuration(s));
+    e.advance(s, e.stepDuration(s, slot, order.menu));
   }
 }
 
@@ -166,7 +170,7 @@ test("visitors can keep ordering from another menu deck until closing", () => {
       assert.ok(e.placeDish(s, 0, q.menu));
       for (let step = 0; step < 3; step++) {
         if (step) assert.ok(e.prepareStep(s, q.id, step));
-        e.advance(s, e.stepDuration(s));
+        e.advance(s, e.stepDuration(s, 0, q.menu));
         if (s.closed) break;
       }
       if (!s.closed) assert.ok(e.serve(s, q.id).amount > 0);
@@ -229,7 +233,7 @@ test("old shifts keep money and recipe progress and apply new patience to elapse
   old.queue[0].entered = 190000; old.queue[0].expires = 250000; old.stations[0].finish = 200900;
   delete old.stations[0].burnAt; delete old.stations[0].burnt;
   const s = e.restore(old);
-  assert.equal(s.version, 12); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
+  assert.equal(s.version, 14); assert.equal(s.balance, 48000); assert.equal(s.served, 3);
   assert.equal(s.promotion, 0); assert.equal(s.hospitality, 0);
   assert.equal(s.goal.id, "fast"); assert.equal(s.goal.progress, 0);
   assert.equal(s.staff, 0);
@@ -307,13 +311,14 @@ test("an employee speeds up each recipe step on every stove while keeping the bu
   e.advance(s, s.nextArrival - s.elapsed);
   for (const [slot, order] of s.queue.entries()) {
     assert.ok(e.placeDish(s, slot, order.menu));
-    assert.equal(s.stations[slot].finish - s.elapsed, slot === 0 ? 1750 : 2000);
-    assert.equal(s.stations[slot].burnAt - s.elapsed, e.burnDelay);
+    assert.equal(s.stations[slot].finish - s.elapsed, e.stepDuration(s, slot, order.menu));
+    assert.equal(s.stations[slot].burnAt - s.elapsed, e.burnDuration(s, order.menu));
   }
-  e.advance(s, e.stepDuration(s, 1));
+  const maxStep = Math.max(...s.queue.map((order, slot) => e.stepDuration(s, slot, order.menu)));
+  e.advance(s, maxStep);
   for (const [slot, order] of s.queue.entries()) {
     assert.ok(e.prepareStep(s, order.id, 1));
-    assert.equal(s.stations[slot].finish - s.elapsed, slot === 0 ? 1750 : 2000);
+    assert.equal(s.stations[slot].finish - s.elapsed, e.stepDuration(s, slot, order.menu));
   }
 });
 
@@ -345,10 +350,10 @@ test("a timing hit makes the third step available immediately on every menu and 
       const ticket = s.queue[0].id;
       assert.ok(e.placeDish(s, 0, menu));
       assert.equal(e.tryTiming(s, ticket), null);
-      e.advance(s, e.stepDuration(s));
+      e.advance(s, e.stepDuration(s, 0, menu));
       assert.ok(e.prepareStep(s, ticket, 1));
       if (percent !== null) {
-        e.advance(s, e.stepDuration(s) * percent / 100);
+        e.advance(s, e.stepDuration(s, 0, menu) * percent / 100);
         assert.equal(e.tryTiming(s, ticket), expected);
         assert.equal(e.tryTiming(s, ticket), null);
       }
@@ -360,10 +365,11 @@ test("a timing hit makes the third step available immediately on every menu and 
       s = e.restore(JSON.parse(JSON.stringify(s)));
       if (!successful) e.advance(s, s.stations[0].finish - s.elapsed);
       assert.ok(e.prepareStep(s, ticket, 2));
-      e.advance(s, e.stepDuration(s));
+      e.advance(s, e.stepDuration(s, 0, menu));
+      const expectedPrice = e.salePrice(s, menu);
       const result = e.serve(s, ticket);
-      assert.equal(result.tip, successful ? e.timingTip : 0);
-      assert.equal(s.balance, 10000 + dish.price + result.tip);
+      assert.equal(result.tip, successful ? e.dishTimingTip(s, menu) : 0);
+      assert.equal(s.balance, 10000 + expectedPrice + result.tip);
       assert.equal(s.goal.progress, Number(successful && menu === e.dumplingMenu));
     }
   }
@@ -398,7 +404,7 @@ test("menu research and promotion apply at purchase and stop at their level caps
   s.balance = 1_000_000;
   for (let level = 1; level <= 6; level++) {
     assert.ok(e.buyUpgrade(s, "quality"));
-    assert.equal(e.salePrice(s, 0), 3000 + 500 * level);
+    assert.equal(e.salePrice(s, 0), 3000 + e.featuredPriceBonus + 500 * level);
   }
   assert.equal(e.buyUpgrade(s, "quality"), false);
   const firstArrival = s.nextArrival;
@@ -428,7 +434,7 @@ test("service training adds 0.2 stars per level with a five-star cap and keeps b
     if (!s.queue.length) e.advance(s, s.nextArrival - s.elapsed);
     const next = s.queue[0];
     assert.ok(e.placeDish(s, 0, next.menu));
-    e.advance(s, e.burnDelay);
+    e.advance(s, e.burnDuration(s, next.menu));
     assert.equal(e.serve(s, next.id).stars, 1);
   }
 });
@@ -527,4 +533,179 @@ test("thirty achievements have unique titles and both milestones use each dish's
       assert.deepEqual(Array.from(restored.celebration.unlocked).filter(id => id !== "first-sale"), [milestone.id]);
     }
   }
+});
+
+test("special guests offer five times the upgraded food price, then pause until claimed or skipped", () => {
+  const e = engine(() => .1), s = e.fresh();
+  s.arrived = 2;
+  s.lastTicket = 2;
+  s.quality = 2;
+  s.nextArrival = s.elapsed + 1000;
+  e.advance(s, 1000);
+  const order = s.queue[0];
+  assert.equal(order.special, true);
+  assert.ok(e.placeDish(s, 0, order.menu));
+  finish(e, s, order.id);
+  const price = e.salePrice(s, order.menu);
+  const balance = s.balance;
+  assert.equal(e.serve(s, order.id).amount, price);
+  assert.equal(s.pendingTip.amount, price * e.specialTipMultiplier);
+  assert.equal(s.balance, balance + price);
+  const elapsed = s.elapsed;
+  e.advance(s, 30_000);
+  assert.equal(s.elapsed, elapsed);
+  const saved = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.equal(e.resolveSpecialTip(saved, order.id, true), price * 5);
+  assert.equal(saved.balance, balance + price * 6);
+  assert.equal(saved.sales, price * 6);
+  assert.equal(e.resolveSpecialTip(saved, order.id, true), 0);
+  assert.equal(saved.balance, balance + price * 6);
+  e.advance(saved, 100);
+  assert.equal(saved.elapsed, elapsed + 100);
+
+  s.pendingTip = { ticket: 99, amount: 5000 };
+  const beforeSkip = s.balance;
+  assert.equal(e.resolveSpecialTip(s, 98, true), 0);
+  assert.ok(s.pendingTip);
+  assert.equal(e.resolveSpecialTip(s, 99, false), 0);
+  assert.equal(s.pendingTip, null);
+  assert.equal(s.balance, beforeSkip);
+});
+
+
+test("consecutive 5-star servings build combos, pay combo tips, trigger fever, and reset on mistakes", () => {
+  const e = engine(() => .5), s = e.fresh();
+  s.weather = "clear";
+  for (let i = 1; i <= 5; i++) {
+    if (!s.queue.length) e.advance(s, s.nextArrival - s.elapsed);
+    const order = s.queue[0];
+    assert.ok(e.placeDish(s, 0, order.menu));
+    finish(e, s, order.id);
+    const res = e.serve(s, order.id);
+    assert.equal(res.stars, 5);
+    assert.equal(res.combo, i);
+    if (i < 3) assert.equal(res.comboTip, 0);
+    if (i === 3) assert.equal(res.comboTip, 200);
+    if (i === 4) assert.equal(res.comboTip, 400);
+    if (i === 5) {
+      assert.equal(res.comboTip, 600);
+      assert.equal(res.feverTriggered, true);
+      assert.equal(e.isFever(s), true);
+    }
+  }
+  assert.equal(s.records.bestCombo, 5);
+  assert.ok(e.stepDuration(s, 0, 1) < 2500);
+  assert.equal(e.dishTimingTip(s, 7), e.menus[7].tip * 2);
+  const restored = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.equal(e.isFever(restored), true);
+  assert.equal(restored.combo, 5);
+
+  if (!restored.queue.length) e.advance(restored, restored.nextArrival - restored.elapsed);
+  const next = restored.queue[0];
+  assert.ok(e.placeDish(restored, 0, next.menu));
+  e.advance(restored, e.burnDuration(restored, next.menu));
+  assert.equal(e.serve(restored, next.id).burnt, true);
+  assert.equal(restored.combo, 0);
+  assert.equal(e.isFever(restored), false);
+});
+
+test("guest affinity ranks unlock tips and star bonuses with double gain on favorite dishes", () => {
+  const e = engine(() => .1), s = e.fresh();
+  assert.equal(e.guestProfiles.length, 21);
+  assert.equal(new Set(e.guestProfiles.map(g => g.favorite)).size, e.menus.length);
+  e.advance(s, s.nextArrival);
+  const order = s.queue[0];
+  const favMenu = e.guestProfiles[order.guest].favorite;
+  order.menu = favMenu;
+  assert.ok(e.placeDish(s, 0, favMenu));
+  finish(e, s, order.id);
+  const firstRes = e.serve(s, order.id);
+  assert.equal(firstRes.favorite, true);
+  assert.equal(s.records.guestAffinity[order.guest], 2);
+
+  s.records.guestAffinity[order.guest] = 2;
+  e.advance(s, s.nextArrival - s.elapsed);
+  const second = s.queue[0];
+  second.guest = order.guest;
+  second.menu = favMenu;
+  assert.ok(e.placeDish(s, 0, favMenu));
+  finish(e, s, second.id);
+  const secondRes = e.serve(s, second.id);
+  assert.equal(secondRes.rankUp.level, 1);
+  assert.equal(e.guestRank(s.records.guestAffinity[order.guest]).name, "단골");
+
+  s.records.guestAffinity[order.guest] = 15;
+  e.advance(s, s.nextArrival - s.elapsed);
+  const third = s.queue[0];
+  third.guest = order.guest;
+  third.menu = 0; // 야채김밥 has 15s burn delay so 10.5s serve does not burn
+  assert.ok(e.placeDish(s, 0, third.menu));
+  finish(e, s, third.id);
+  e.advance(s, third.entered + 10_500 - s.elapsed);
+  const thirdRes = e.serve(s, third.id);
+  assert.equal(thirdRes.burnt, false);
+  assert.equal(thirdRes.regularTip, 500);
+  assert.equal(thirdRes.stars, 3.2);
+});
+
+test("weather forecasts, featured menu synergy, and expanded daily goals work across days", () => {
+  const e = engine(() => .5), s = e.fresh();
+  assert.equal(Object.keys(e.dailyGoals).length, 12);
+  assert.equal(s.weather, "clear");
+  assert.ok(e.setFeaturedMenu(s, 2));
+  assert.equal(s.featuredMenu, 2);
+  s.nextWeather = "rainy";
+  e.advance(s, e.shiftDuration - s.elapsed);
+  e.settleDay(s, 2);
+  assert.equal(s.weather, "rainy");
+  assert.equal(s.featuredMenu, 2);
+  assert.equal(e.salePrice(s, 2), e.menus[2].price + e.weathers.rainy.priceBonus + e.featuredPriceBonus);
+
+  e.advance(s, s.nextArrival);
+  assert.ok(e.setFeaturedMenu(s, 6));
+  assert.equal(s.featuredMenu, 2);
+  assert.equal(s.nextFeaturedMenu, 6);
+});
+
+test("staff Lv.2 extends burn delay and timing window, and Lv.3 auto-starts pending dishes", () => {
+  const e = engine(() => .5), s = e.fresh();
+  s.balance = 300_000;
+  assert.ok(e.buyUpgrade(s, "staff"));
+  assert.equal(s.staff, 1);
+  assert.equal(e.timingWindowFor(s), 40);
+  assert.equal(e.burnDuration(s, 1), 12000);
+
+  assert.ok(e.buyUpgrade(s, "staff"));
+  assert.equal(s.staff, 2);
+  assert.equal(e.timingWindowFor(s), 52);
+  assert.equal(e.burnDuration(s, 1), 15000);
+
+  assert.ok(e.buyUpgrade(s, "staff"));
+  assert.equal(s.staff, 3);
+  assert.equal(e.buyUpgrade(s, "staff"), false);
+
+  e.advance(s, s.nextArrival);
+  assert.equal(s.stations[0], null);
+  assert.equal(s.staffAutoAt, s.elapsed + e.staffAutoDelay);
+  const events = e.advance(s, e.staffAutoDelay);
+  assert.ok(events.some(ev => ev.type === "staff-auto"));
+  assert.ok(s.stations[0] !== null);
+  assert.equal(s.stations[0].ticket, s.queue[0].id);
+});
+
+test("v13 saves migrate cleanly to v14 without losing active orders or records", () => {
+  const e = engine(() => .5), s = withOrder(e);
+  s.version = 13;
+  delete s.combo; delete s.dayBestCombo; delete s.feverUntil; delete s.staffAutoAt;
+  delete s.weather; delete s.nextWeather; delete s.featuredMenu; delete s.nextFeaturedMenu;
+  delete s.records.bestCombo; delete s.records.guestVisits; delete s.records.guestAffinity;
+  const finishBefore = s.stations[0].finish;
+  const restored = e.restore(JSON.parse(JSON.stringify(s)));
+  assert.equal(restored.version, 14);
+  assert.equal(restored.stations[0].finish, finishBefore);
+  assert.equal(restored.weather, "clear");
+  assert.equal(restored.featuredMenu, 0);
+  assert.equal(restored.combo, 0);
+  assert.equal(restored.records.guestAffinity.length, 21);
+  assert.equal(restored.records.guestVisits.length, 21);
 });

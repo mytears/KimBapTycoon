@@ -16,10 +16,11 @@
     <header class="masthead">
       <div class="brand"><img class="brand-mark" src="assets/logo.png" alt=""><div><h1>분식<span>타이쿤</span></h1><p id="daily-goal" aria-live="polite"></p></div></div>
       <nav aria-label="게임 화면">
-        <button data-page="play" aria-current="page"><i data-icon="store"></i>영업</button>
-        <button data-page="manage"><i data-icon="upgrade"></i>가게 관리</button>
-        <button data-page="journal"><i data-icon="book"></i>영업 일지</button>
-        <button data-page="achievements"><i data-icon="trophy"></i>업적</button>
+        <button data-page="play" aria-current="page"><i data-icon="store"></i><span>영업</span></button>
+        <button data-page="manage"><i data-icon="upgrade"></i><span>관리</span></button>
+        <button data-page="regulars"><i data-icon="heart"></i><span>단골</span></button>
+        <button data-page="journal"><i data-icon="book"></i><span>일지</span></button>
+        <button data-page="achievements"><i data-icon="trophy"></i><span>업적</span></button>
       </nav>
       <div class="tools"><button id="sound" class="icon-button" aria-label="효과음 켜기"><i data-icon="muted"></i></button><button id="settings" class="icon-button" aria-label="설정" title="설정"><i data-icon="gear"></i></button></div>
     </header>
@@ -36,8 +37,11 @@
               <img id="staff-sprite" class="staff-sprite" src="assets/art/staff.webp" alt="가게 밖 화구 앞에 서 있는 여성 조리 직원" hidden>
               <div id="patrons" class="patrons" aria-label="매장 앞 손님"></div>
               <div id="departures" class="patrons" aria-label="떠나는 손님 반응"></div>
+              <div id="weather-fx" class="weather-fx" aria-hidden="true"></div>
+              <div id="float-layer" class="float-layer" aria-hidden="true"></div>
             </div>
             <span class="scene-period" id="scene-period"></span>
+            <div class="scene-badges" id="scene-badges" aria-live="polite"></div>
           </div>
           <div class="hud">
             <div class="shift"><i id="shift-icon"></i><b id="day">1일차</b><span id="time">07:00</span></div>
@@ -58,6 +62,7 @@
         </div>
       </section>
       <section id="manage" class="subpage" aria-label="가게 관리" hidden></section>
+      <section id="regulars" class="subpage" aria-label="단골 도감" hidden></section>
       <section id="journal" class="subpage" aria-label="영업 일지" hidden></section>
       <section id="achievements" class="subpage" aria-label="업적" hidden></section>
     </main>

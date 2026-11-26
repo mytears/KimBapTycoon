@@ -2,28 +2,54 @@
 
 const menus = [
   { name: "야채김밥", price: 3000, steps: ["김에 밥 펴기", "속재료 올리기", "말아서 썰기"],
-    timing: { action: "속재료 정돈", from: 25 } },
+    timing: { action: "속재료 정돈", from: 25 }, stepDelta: -300, burnDelta: 3000, tip: 500, trait: "빠른 손질 · 넉넉한 보온" },
   { name: "떡볶이", price: 4000, steps: ["양념장 풀기", "떡과 어묵 넣기", "양념에 졸이기"],
-    timing: { action: "양념 섞기", from: 35 } },
+    timing: { action: "양념 섞기", from: 35 }, stepDelta: 0, burnDelta: 0, tip: 600, trait: "균형 조리 · 팁 우수" },
   { name: "라면", price: 3500, steps: ["육수 끓이기", "면 풀어 넣기", "달걀 올리기"],
-    timing: { action: "면 저어주기", from: 30 } },
+    timing: { action: "면 저어주기", from: 30 }, stepDelta: -300, burnDelta: -1500, tip: 500, trait: "빠른 조리 · 빨리 불음" },
   { name: "꼬치어묵", price: 3000, steps: ["어묵 접어 끼우기", "육수에 익히기", "국물 담기"],
-    timing: { action: "꼬치 뒤집기", from: 50 } },
+    timing: { action: "꼬치 뒤집기", from: 50 }, stepDelta: -400, burnDelta: 4000, tip: 500, trait: "초고속 · 오래 보온" },
   { name: "모둠튀김", price: 4500, steps: ["재료 손질하기", "튀김옷 입히기", "바삭하게 튀기기"],
-    timing: { action: "튀김옷 털기", from: 45 } },
+    timing: { action: "튀김옷 털기", from: 45 }, stepDelta: 100, burnDelta: -1000, tip: 800, trait: "바삭 타이밍 고보너스" },
   { name: "순대", price: 4500, steps: ["찜기에 물 붓기", "순대 찌기", "썰어 소금 곁들이기"],
-    timing: { action: "불 조절", from: 40 } },
+    timing: { action: "불 조절", from: 40 }, stepDelta: -100, burnDelta: 2500, tip: 500, trait: "여유로운 찜기 보온" },
   { name: "불고기덮밥", price: 6500, steps: ["고기 양념하기", "불고기 볶기", "밥 위에 담기"],
-    timing: { action: "고기 뒤집기", from: 45 } },
+    timing: { action: "고기 뒤집기", from: 45 }, stepDelta: 300, burnDelta: 1000, tip: 800, trait: "고수익 · 정성 조리" },
   { name: "군만두", price: 4000, steps: ["팬에 기름 두르기", "만두 굽기", "초간장 곁들이기"],
-    timing: { action: "만두 뒤집기", from: 40 } },
+    timing: { action: "만두 뒤집기", from: 40 }, stepDelta: 0, burnDelta: -1000, tip: 800, trait: "노릇 타이밍 고보너스" },
   { name: "김치볶음밥", price: 5500, steps: ["김치 볶기", "밥 넣고 볶기", "달걀프라이 올리기"],
-    timing: { action: "밥 뒤집기", from: 35 } }
+    timing: { action: "밥 뒤집기", from: 35 }, stepDelta: 200, burnDelta: 0, tip: 700, trait: "고수익 · 화력 요리" }
 ];
-const guests = ["단골 학생", "퇴근길 회사원", "동네 책방 주인", "자전거 배달원", "시장 단골 할머니", "이웃 빵집 사장",
-  "꽃집 사장", "골목 사진가", "퇴근길 간호사", "택시 기사", "바이올린 연주자", "낚시꾼 할아버지",
-  "도예가", "스케이트보더", "우편집배원", "태권도 선수", "과일 가게 사장", "첼리스트",
-  "버스 기사", "캠핑 여행자", "동네 파티시에"];
+const guestProfiles = [
+  { name: "단골 학생", favorite: 1, bio: "하교길마다 친구들과 들르는 골목 붙박이", quote: "여기 떡볶이 양념이 제일 중독성 있어요!" },
+  { name: "퇴근길 회사원", favorite: 2, bio: "야근 후 따끈한 국물로 하루를 푸는 직장인", quote: "하루 피로가 라면 국물 한 모금에 싹 풀려요." },
+  { name: "동네 책방 주인", favorite: 0, bio: "책 냄새를 풍기며 한 줄 포장해 가는 이웃", quote: "책 읽으면서 한 입씩 먹기엔 김밥이 최고죠." },
+  { name: "자전거 배달원", favorite: 6, bio: "언덕길을 달린 뒤 든든한 한 끼를 찾는 라이더", quote: "불고기덮밥 먹고 나면 페달이 가벼워져요!" },
+  { name: "시장 단골 할머니", favorite: 3, bio: "장바구니를 들고 정겹게 안부를 묻는 할머니", quote: "추운 날엔 역시 어묵 국물이 속을 데워주지." },
+  { name: "이웃 빵집 사장", favorite: 8, bio: "오븐 불을 끄고 매콤한 밥을 찾으러 오는 이웃", quote: "달콤한 빵 굽고 나면 김치볶음밥이 딱 당겨요." },
+  { name: "꽃집 사장", favorite: 0, bio: "꽃다발 손질 틈틈이 가볍게 들르는 플로리스트", quote: "속재료가 알록달록해서 꽃다발처럼 예쁘네요!" },
+  { name: "골목 사진가", favorite: 7, bio: "노을과 간판 불빛을 필름에 담는 사진가", quote: "노릇하게 구운 군만두는 찍어도 예쁘고 먹어도 최고예요." },
+  { name: "퇴근길 간호사", favorite: 5, bio: "교대근무를 마치고 따뜻한 분식을 찾는 간호사", quote: "따뜻한 순대 한 접시가 늘 큰 위로가 돼요." },
+  { name: "택시 기사", favorite: 8, bio: "야간 운행 전 골목에 잠깐 들르는 베테랑 기사님", quote: "화력 좋게 볶은 밥이라 마지막 한 숟갈까지 맛있어요." },
+  { name: "바이올린 연주자", favorite: 4, bio: "연습실이 끝나면 바삭한 간식을 찾는 연주자", quote: "바삭한 튀김 소리가 꼭 경쾌한 리듬 같아요." },
+  { name: "낚시꾼 할아버지", favorite: 3, bio: "새벽 출조를 마치고 골목에서 몸을 녹이는 어르신", quote: "강바람 쐬고 와서 먹는 꼬치어묵은 못 참지!" },
+  { name: "도예가", favorite: 5, bio: "가마 앞 작업을 끝내고 느긋하게 찾아오는 작가", quote: "정성 들여 쪄낸 순대라 식감이 남다르네요." },
+  { name: "스케이트보더", favorite: 1, bio: "골목 어귀에서 보드를 옆에 끼고 들르는 청년", quote: "매콤달콤 떡볶이 먹고 한 판 더 타러 가야죠!" },
+  { name: "우편집배원", favorite: 0, bio: "동네 구석구석 소식을 전하는 부지런한 집배원", quote: "배달 중간에 챙겨 먹기엔 이 집 김밥이 으뜸이에요." },
+  { name: "태권도 선수", favorite: 6, bio: "도장 훈련 뒤 든든한 고기 반찬을 찾는 선수", quote: "불고기덮밥 한 그릇이면 기합이 절로 들어갑니다!" },
+  { name: "과일 가게 사장", favorite: 7, bio: "저녁 정리를 마치고 바삭한 만두를 즐기는 이웃", quote: "겉은 바삭하고 속은 촉촉해서 자꾸 생각나요." },
+  { name: "첼리스트", favorite: 2, bio: "늦은 합주 후 따뜻한 면 요리를 즐기는 연주자", quote: "깊은 육수 맛이 첼로 저음처럼 마음을 울리네요." },
+  { name: "버스 기사", favorite: 6, bio: "종점 회차 시간에 맞춰 찾아오는 친절한 기사님", quote: "늘 변함없는 손맛 덕분에 오늘도 힘내서 운행해요." },
+  { name: "캠핑 여행자", favorite: 2, bio: "여행 다녀오는 길에 골목 라면을 꼭 들르는 여행객", quote: "산에서 먹던 라면보다 사장님 라면이 한 수 위예요!" },
+  { name: "동네 파티시에", favorite: 4, bio: "디저트 마감 후 짭짤한 튀김을 찾는 제과사", quote: "튀김옷이 얇고 바삭해서 식감이 완벽해요!" }
+];
+const guests = guestProfiles.map(g => g.name);
+const affinityRanks = [
+  { level: 0, name: "방문", min: 0, tip: 0, starBonus: 0 },
+  { level: 1, name: "단골", min: 3, tip: 200, starBonus: 0, favoriteOnlyTip: true },
+  { level: 2, name: "찐단골", min: 8, tip: 300, starBonus: 0 },
+  { level: 3, name: "골목 가족", min: 15, tip: 500, starBonus: 2 }
+];
 const tempers = {
   regular: { name: "보통", seconds: 40 },
   hasty: { name: "성미 급함", seconds: 30 },
@@ -38,14 +64,79 @@ const interiors = ["나무", "벽돌", "대리석"];
 const capacity = 5;
 const equipmentStepReduction = 250;
 const staffStepReduction = 500;
-const stepDuration = (s, slot = 0) => 2500 - equipmentStepReduction * s.stoveLevels[slot] - (s.staff ? staffStepReduction : 0);
+const staffBurnBonus = 3000;
+const staffTimingBonus = 12;
+const staffAutoDelay = 1500;
+const feverComboThreshold = 5;
+const feverDuration = 20_000;
+const feverSpeedMultiplier = 0.85;
+const featuredPriceBonus = 500;
+const comboTipStep = 200;
+const comboTipCap = 1000;
+const weathers = {
+  clear: {
+    id: "clear", name: "맑은 날", icon: "sun",
+    desc: "평온한 골목 영업이에요.",
+    menus: [], priceBonus: 0, arrivalFactor: 1, fiveStarTip: 0
+  },
+  rainy: {
+    id: "rainy", name: "비 오는 날", icon: "rain",
+    desc: "라면·꼬치어묵 주문 증가 및 판매가 +500원",
+    menus: [2, 3], priceBonus: 500, arrivalFactor: 1.05, fiveStarTip: 0
+  },
+  chilly: {
+    id: "chilly", name: "쌀쌀한 바람", icon: "wind",
+    desc: "떡볶이·순대 주문 증가 및 판매가 +500원",
+    menus: [1, 5], priceBonus: 500, arrivalFactor: 1, fiveStarTip: 0
+  },
+  festival: {
+    id: "festival", name: "동네 운동회", icon: "flag",
+    desc: "손님 입장 15% 빠름 · 김밥·군만두 +400원",
+    menus: [0, 7], priceBonus: 400, arrivalFactor: 0.85, fiveStarTip: 0
+  },
+  payday: {
+    id: "payday", name: "월급날 저녁", icon: "coin",
+    desc: "덮밥·볶음밥·튀김 인기 및 판매가 +600원",
+    menus: [4, 6, 8], priceBonus: 600, arrivalFactor: 0.94, fiveStarTip: 0
+  },
+  critic: {
+    id: "critic", name: "맛집 소문", icon: "star",
+    desc: "별점 5점 서빙마다 추가 팁 +300원",
+    menus: [], priceBonus: 0, arrivalFactor: 0.92, fiveStarTip: 300
+  }
+};
+const weatherIds = Object.keys(weathers);
+const isFever = s => s.feverUntil != null && s.elapsed < s.feverUntil;
+function stepDuration(s, slot = 0, menu = null) {
+  const base = 2500 - equipmentStepReduction * s.stoveLevels[slot] - (s.staff >= 1 ? staffStepReduction : 0);
+  const delta = menu != null && menus[menu] ? menus[menu].stepDelta : 0;
+  const raw = Math.max(600, base + delta);
+  return isFever(s) ? Math.max(500, Math.round(raw * feverSpeedMultiplier)) : raw;
+}
+function burnDuration(s, menu = null) {
+  const delta = menu != null && menus[menu] ? menus[menu].burnDelta : 0;
+  const staffBonus = s.staff >= 2 ? staffBurnBonus : 0;
+  return burnDelay + delta + staffBonus;
+}
+function timingWindowFor(s) {
+  return timingWindowWidth + (s.staff >= 2 ? staffTimingBonus : 0);
+}
+function dishTimingTip(s, menu) {
+  const base = menus[menu]?.tip ?? timingTip;
+  return isFever(s) ? base * 2 : base;
+}
+function guestRank(affinity) {
+  let rank = affinityRanks[0];
+  for (const item of affinityRanks) if (affinity >= item.min) rank = item;
+  return rank;
+}
 const menuPriceBoost = 500;
 const promotionBoost = 10;
 const hospitalityBonus = 2;
 const upgrades = [
   { key: "interior", name: "가게 인테리어", max: 2, base: 50000, icon: "store" },
   { key: "quality", name: "메뉴 연구", max: 6, base: 15000, icon: "menu" },
-  { key: "staff", name: "직원 채용", max: 1, base: 30000, icon: "people" },
+  { key: "staff", name: "직원 채용 · 교육", max: 3, base: 30000, icon: "people" },
   { key: "promotion", name: "동네 홍보", max: 3, base: 20000, icon: "store" },
   { key: "hospitality", name: "서비스 개선", max: 3, base: 18000, icon: "star" }
 ];
@@ -71,7 +162,7 @@ function shopName(value) {
   const letters = nameSegmenter ? nameSegmenter.segment(name) : name;
   return Array.from(letters).length <= 4 && !/[\u0000-\u001f\u007f]/u.test(name) ? name : "";
 }
-const arrivalFactor = s => (100 - s.promotion * promotionBoost) / 100;
+const arrivalFactor = s => ((100 - s.promotion * promotionBoost) / 100) * (weathers[s.weather]?.arrivalFactor ?? 1);
 const openMinute = 7 * 60;
 const closeMinute = 22 * 60;
 const shiftDuration = 180_000;
@@ -80,11 +171,22 @@ const fastService = 10_000;
 const dumplingMenu = 7;
 const timingWindowWidth = 40;
 const timingTip = 500;
+const specialTipMultiplier = 5;
+const specialGuestChance = .15;
 const dailyGoalReward = 3000;
 const dailyGoals = {
-  crispy: { name: "바삭한 군만두 판매", target: 1, counts: result => result.menu === dumplingMenu && result.tip > 0 },
+  crispy: { name: "바삭한 군만두 판매", target: 1, counts: result => result.menu === dumplingMenu && result.timingTip > 0 },
   lunch: { name: "점심(11~14시) 판매", target: 2, counts: (_, minute) => minute >= 11 * 60 && minute < 14 * 60 },
-  fast: { name: "10초 이내 서빙", target: 3, counts: result => result.fast }
+  fast: { name: "10초 이내 서빙", target: 3, counts: result => result.fast },
+  dinner: { name: "저녁(17~20시) 판매", target: 3, counts: (_, minute) => minute >= 17 * 60 && minute < 20 * 60 },
+  timing3: { name: "타이밍 성공 서빙", target: 3, counts: result => result.timingTip > 0 },
+  fiveStar4: { name: "별점 5점 서빙", target: 4, counts: result => result.stars === 5 },
+  combo3: { name: "연속 3콤보 달성", target: 1, counts: result => result.combo >= 3 },
+  featured2: { name: "오늘의 추천 메뉴 판매", target: 2, counts: result => result.featured },
+  favorite2: { name: "손님 최애 메뉴 만족", target: 2, counts: result => result.favorite && result.stars >= 4 },
+  served8: { name: "하루 8건 판매", target: 8, counts: () => true },
+  soup2: { name: "라면·꼬치어묵 판매", target: 2, counts: result => result.menu === 2 || result.menu === 3 },
+  noBurn5: { name: "탄 음식 없이 5건 판매", target: 5, counts: (result, _, s) => s.burntServed === 0 }
 };
 const menuAchievementTitles = [
   { id: "gimbap", unit: "줄", titles: ["김밥 솜씨", "김밥 장인"] },
@@ -133,9 +235,17 @@ const dayparts = [
 const clockMinutes = s => openMinute + Math.floor(Math.min(shiftDuration, s.elapsed) * (closeMinute - openMinute) / shiftDuration);
 const daypartAt = minutes => dayparts.reduce((part, next) => minutes >= next.from * 60 ? next : part);
 const emptyReviewStats = () => ({ reviewCount: 0, reviewStars: 0, burntServed: 0, unservedAtClose: 0 });
-const emptyAchievementRecords = () => ({ fiveStars: 0, timed: 0, dishSales: Array(menus.length).fill(0) });
+const emptyAchievementRecords = () => ({
+  fiveStars: 0, timed: 0, dishSales: Array(menus.length).fill(0),
+  bestCombo: 0, guestVisits: Array(guests.length).fill(0), guestAffinity: Array(guests.length).fill(0)
+});
 const storageKey = "byeolbam.bunsik.v1";
 const pick = items => items[Math.floor(Math.random() * items.length)];
+
+function pickWeather(exclude = null) {
+  const pool = weatherIds.filter(id => id !== exclude);
+  return pick(pool);
+}
 
 function menuDeck(first) {
   const deck = menus.map((_, index) => index).filter(index => index !== first);
@@ -158,6 +268,35 @@ function scheduleArrival(s) {
   if (next < shiftDuration) s.nextArrival = next;
 }
 
+function syncStaffAuto(s) {
+  if (s.staff < 3 || s.closed || s.elapsed >= shiftDuration) {
+    s.staffAutoAt = null;
+    return;
+  }
+  const hasSlot = s.stations.includes(null);
+  const hasPending = pendingOrders(s).length > 0;
+  if (hasSlot && hasPending) {
+    if (s.staffAutoAt == null) s.staffAutoAt = s.elapsed + staffAutoDelay;
+  } else {
+    s.staffAutoAt = null;
+  }
+}
+
+function chooseOrderMenu(s, guest, first) {
+  if (first) return s.deck[0];
+  const base = s.deck[s.arrived % menus.length];
+  if (s.day === 1 && s.arrived === 1 && s.goal?.id === "crispy") return base;
+  const profile = guestProfiles[guest];
+  const rank = guestRank(s.records.guestAffinity[guest] || 0);
+  const weather = weathers[s.weather];
+  const roll = Math.random();
+  const favChance = rank.level >= 2 ? 0.35 : rank.level >= 1 ? 0.25 : 0.16;
+  if (roll < favChance) return profile.favorite;
+  if (s.featuredMenu != null && menus[s.featuredMenu] && roll < favChance + 0.18) return s.featuredMenu;
+  if (weather?.menus.length && roll < favChance + 0.34) return pick(weather.menus);
+  return base;
+}
+
 function admit(s) {
   if (s.closed || s.elapsed >= shiftDuration || s.queue.length >= capacity) return;
   if (s.returning) {
@@ -167,6 +306,7 @@ function admit(s) {
     s.queue.push(order);
     s.returning = null;
     scheduleArrival(s);
+    syncStaffAuto(s);
     return;
   }
   if (s.arrived > 0 && s.arrived % menus.length === 0) s.deck = menuDeck();
@@ -174,42 +314,80 @@ function admit(s) {
   const free = guests.map((_, i) => i).filter(i => !s.queue.some(q => q.guest === i));
   const roll = Math.random();
   const temper = first ? "regular" : roll < .2 ? "hasty" : roll < .48 ? "easy" : "regular";
+  const special = !first && s.arrived >= 2 && s.arrived - s.lastSpecialArrival >= 4 &&
+    Math.random() < specialGuestChance;
+  const guest = first ? 0 : pick(free);
+  const menu = chooseOrderMenu(s, guest, first);
   const order = {
-    id: ++s.lastTicket, menu: s.deck[s.arrived % menus.length], guest: first ? 0 : pick(free),
-    temper, entered: s.elapsed, expires: waitDeadline(temper, s.elapsed)
+    id: ++s.lastTicket, menu, guest,
+    temper, special, entered: s.elapsed, expires: waitDeadline(temper, s.elapsed)
   };
+  if (special) s.lastSpecialArrival = s.arrived;
+  s.records.guestVisits[guest] = (s.records.guestVisits[guest] || 0) + 1;
   s.queue.push(order);
   s.arrived++;
   scheduleArrival(s);
+  syncStaffAuto(s);
+}
+
+function pickGoalId(day, previousGoalId = null) {
+  const ids = Object.keys(dailyGoals);
+  if (day <= 3) return ids[day - 1];
+  const pool = ids.filter(id => id !== previousGoalId);
+  return pick(pool);
 }
 
 function startDay(s) {
-  const goalIds = Object.keys(dailyGoals);
-  const goalId = goalIds[(s.day - 1) % goalIds.length];
+  const prevGoal = s.goal?.id ?? null;
+  const goalId = pickGoalId(s.day, prevGoal);
+  const weather = s.day === 1 ? "clear" : (weathers[s.nextWeather] ? s.nextWeather : pickWeather(s.weather));
+  const nextWeather = pickWeather(weather);
+  const featuredMenu = Number.isInteger(s.nextFeaturedMenu) && menus[s.nextFeaturedMenu]
+    ? s.nextFeaturedMenu
+    : (Number.isInteger(s.featuredMenu) && menus[s.featuredMenu] ? s.featuredMenu : 0);
   const deck = menuDeck(s.day === 1 ? 0 : undefined);
   if (goalId === "crispy") {
     const index = deck.indexOf(dumplingMenu);
     [deck[index], deck[1]] = [deck[1], deck[index]];
   }
   Object.assign(s, emptyReviewStats(), { served: 0, missed: 0, sales: 0, elapsed: 0, arrived: 0,
-    queue: [], returning: null, stations: s.stoveLevels.map(() => null),
+    queue: [], returning: null, pendingTip: null, lastSpecialArrival: -2,
+    combo: 0, dayBestCombo: 0, feverUntil: null, staffAutoAt: null,
+    weather, nextWeather, featuredMenu, nextFeaturedMenu: null,
+    stations: s.stoveLevels.map(() => null),
     closed: false, crowd: pick(["quiet", "usual", "usual", "busy"]), deck,
     goal: { id: goalId, progress: 0 } });
   scheduleArrival(s);
   return s;
 }
 function fresh() {
-  return startDay({ version: 12, day: 1, balance: 10000, total: 0, lastTicket: 0,
+  return startDay({ version: 14, day: 1, balance: 10000, total: 0, lastTicket: 0,
     staff: 0, stoveLevels: [0], interior: 0, quality: 0, promotion: 0, hospitality: 0, history: [], sound: false, music: true,
-    records: emptyAchievementRecords(), celebration: null, decor: defaultDecor() });
+    records: emptyAchievementRecords(), celebration: null, decor: defaultDecor(),
+    featuredMenu: 0, nextFeaturedMenu: null, weather: "clear", nextWeather: null });
 }
-const salePrice = (s, menu) => menus[menu].price + s.quality * menuPriceBoost;
+function salePrice(s, menu) {
+  const weatherBonus = weathers[s.weather]?.menus.includes(menu) ? weathers[s.weather].priceBonus : 0;
+  const featuredBonus = s.featuredMenu === menu ? featuredPriceBonus : 0;
+  return menus[menu].price + s.quality * menuPriceBoost + weatherBonus + featuredBonus;
+}
+function setFeaturedMenu(s, menu, forTomorrow = false) {
+  if (!Number.isInteger(menu) || !menus[menu]) return false;
+  if (!forTomorrow && !s.closed && s.arrived === 0 && s.served === 0) {
+    s.featuredMenu = menu;
+    s.nextFeaturedMenu = null;
+  } else {
+    s.nextFeaturedMenu = menu;
+  }
+  return true;
+}
 
 function installStove(s) {
   if (s.stoveLevels.length >= stoveLimit || s.balance < installCost) return false;
   s.balance -= installCost;
   s.stoveLevels.push(0);
   s.stations.push(null);
+  syncStaffAuto(s);
   return true;
 }
 
@@ -235,6 +413,7 @@ function buyUpgrade(s, key) {
     if (s.nextArrival === null) scheduleArrival(s);
     else s.nextArrival = s.elapsed + Math.round((s.nextArrival - s.elapsed) * arrivalFactor(s) / previousArrivalFactor);
   }
+  if (key === "staff") syncStaffAuto(s);
   return true;
 }
 
@@ -244,6 +423,7 @@ function removeOrder(s, order) {
   const slot = s.stations.findIndex(k => k?.ticket === order.id);
   if (slot >= 0) s.stations[slot] = null;
   if (wasFull) scheduleArrival(s);
+  syncStaffAuto(s);
 }
 
 function completeStep(station) {
@@ -256,12 +436,21 @@ function recordReview(s, stars) {
   s.reviewStars = Math.round((s.reviewStars + stars) * 10) / 10;
 }
 
+function resetCombo(s) {
+  s.combo = 0;
+  s.feverUntil = null;
+}
+
 // Resolve events at their actual play times, including simultaneous deadlines.
 function advance(s, delta) {
   const events = [];
+  if (s.pendingTip) return events;
   const target = s.elapsed + Math.max(0, delta);
   while (!s.closed) {
-    const next = Math.min(shiftDuration, s.nextArrival ?? Infinity, ...s.stations.map(k => k?.finish ?? Infinity),
+    const next = Math.min(shiftDuration, s.nextArrival ?? Infinity,
+      s.staffAutoAt ?? Infinity,
+      s.feverUntil ?? Infinity,
+      ...s.stations.map(k => k?.finish ?? Infinity),
       ...s.stations.map(k => k && !k.burnt ? k.burnAt : Infinity),
       ...s.queue.map(q => q.expires));
     if (next > target) { s.elapsed = target; break; }
@@ -269,13 +458,19 @@ function advance(s, delta) {
     if (next === shiftDuration) {
       s.unservedAtClose = s.queue.length + (s.returning ? 1 : 0);
       s.queue = []; s.stations.fill(null); s.returning = null; s.nextArrival = null;
+      s.feverUntil = null; s.staffAutoAt = null;
       s.closed = true;
       events.push({ type: "closed" });
       break;
     }
+    if (s.feverUntil != null && s.feverUntil <= next) {
+      s.feverUntil = null;
+      events.push({ type: "fever-end" });
+    }
     for (const q of s.queue.filter(q => q.expires <= next)) {
       removeOrder(s, q);
       s.missed++;
+      resetCombo(s);
       recordReview(s, 1);
       events.push({ type: "left", order: q });
     }
@@ -289,9 +484,19 @@ function advance(s, delta) {
         events.push({ type: "prepared" });
       }
     }
-    if (s.nextArrival !== null && s.nextArrival <= next) {
+    if (s.nextArrival != null && s.nextArrival <= next) {
       admit(s);
       events.push({ type: "arrival" });
+    }
+    if (s.staffAutoAt != null && s.staffAutoAt <= next) {
+      s.staffAutoAt = null;
+      const slot = s.stations.indexOf(null);
+      const pending = pendingOrders(s)[0];
+      if (slot >= 0 && pending) {
+        s.stations[slot] = startCooking(s, pending.id, slot, pending.menu);
+        events.push({ type: "staff-auto", slot, order: pending });
+      }
+      syncStaffAuto(s);
     }
   }
   return events;
@@ -306,16 +511,24 @@ function placeDish(s, slot, menu) {
   if (s.stations[slot] !== null || s.closed) return false;
   const order = pendingOrders(s).find(q => q.menu === menu);
   if (!order) return false;
-  s.stations[slot] = startCooking(s, order.id, slot);
+  s.stations[slot] = startCooking(s, order.id, slot, order.menu);
+  syncStaffAuto(s);
   return true;
 }
-function startCooking(s, ticket, slot = 0) {
-  return { ticket, step: 0, finish: s.elapsed + stepDuration(s, slot), burnAt: s.elapsed + burnDelay, burnt: false };
+function startCooking(s, ticket, slot = 0, menu = null) {
+  const resolvedMenu = menu ?? s.queue.find(q => q.id === ticket)?.menu ?? null;
+  return {
+    ticket, step: 0,
+    finish: s.elapsed + stepDuration(s, slot, resolvedMenu),
+    burnAt: s.elapsed + burnDuration(s, resolvedMenu),
+    burnt: false
+  };
 }
 function remakeDish(s, ticket) {
   const slot = s.stations.findIndex(k => k?.ticket === ticket && k.burnt);
   if (slot < 0) return false;
-  s.stations[slot] = startCooking(s, ticket, slot);
+  const order = s.queue.find(q => q.id === ticket);
+  s.stations[slot] = startCooking(s, ticket, slot, order?.menu ?? null);
   return true;
 }
 function prepareStep(s, ticket, step) {
@@ -323,7 +536,7 @@ function prepareStep(s, ticket, step) {
   const k = s.stations[slot];
   const order = s.queue.find(q => q.id === ticket);
   if (!k || k.burnt || !order || k.step !== step || k.finish != null || !menus[order.menu].steps[step]) return false;
-  k.finish = s.elapsed + stepDuration(s, slot);
+  k.finish = s.elapsed + stepDuration(s, slot, order.menu);
   if (step === 1) k.timingStarted = s.elapsed;
   return true;
 }
@@ -333,9 +546,10 @@ function timingProgress(s, station) {
   return 100 * (s.elapsed - station.timingStarted) / (station.finish - station.timingStarted);
 }
 
-function hitTimingWindow(menu, progress) {
+function hitTimingWindow(menu, progress, width = timingWindowWidth) {
   const from = menus[menu].timing.from;
-  return progress >= from && progress <= from + timingWindowWidth;
+  const end = Math.min(100, from + width);
+  return progress >= from && progress <= end;
 }
 
 function tryTiming(s, ticket) {
@@ -344,7 +558,7 @@ function tryTiming(s, ticket) {
   if (!station || !order || station.timingResult) return null;
   const progress = timingProgress(s, station);
   if (progress === null || progress < 0 || progress >= 100) return null;
-  station.timingResult = hitTimingWindow(order.menu, progress) ? "hit" : "missed";
+  station.timingResult = hitTimingWindow(order.menu, progress, timingWindowFor(s)) ? "hit" : "missed";
   if (station.timingResult === "hit") completeStep(station);
   return station.timingResult;
 }
@@ -424,11 +638,45 @@ function serve(s, ticket) {
       (!k.burnt && k.step !== menus[head.menu].steps.length)) return null;
   const before = achievementCounts(s);
   const goalWasDone = goalReward(s.goal) > 0;
-  const tip = !k.burnt && k.timingResult === "hit" ? timingTip : 0;
-  const amount = k.burnt ? 0 : salePrice(s, head.menu) + tip;
+  const profile = guestProfiles[head.guest];
+  const favorite = profile.favorite === head.menu;
+  const featured = s.featuredMenu === head.menu;
+  const prevAffinity = s.records.guestAffinity[head.guest] || 0;
+  const rankBefore = guestRank(prevAffinity);
   const fast = !k.burnt && s.elapsed - head.entered <= fastService;
   const baseStars = k.burnt ? 1 : fast ? 5 : pick([3, 4, 5]);
-  const stars = k.burnt ? baseStars : Math.min(50, baseStars * 10 + s.hospitality * hospitalityBonus) / 10;
+  const stars = k.burnt ? baseStars : Math.min(50, baseStars * 10 + s.hospitality * hospitalityBonus + rankBefore.starBonus) / 10;
+
+  let timingBonus = 0, comboTip = 0, regularTip = 0, weatherTip = 0;
+  let feverTriggered = false, rankUp = null;
+  if (k.burnt) {
+    resetCombo(s);
+  } else {
+    timingBonus = k.timingResult === "hit" ? dishTimingTip(s, head.menu) : 0;
+    if (stars === 5 || timingBonus > 0) {
+      s.combo++;
+      if (s.combo > s.dayBestCombo) s.dayBestCombo = s.combo;
+      if (s.combo > s.records.bestCombo) s.records.bestCombo = s.combo;
+      if (s.combo >= 3) comboTip = Math.min(comboTipCap, (s.combo - 2) * comboTipStep);
+      if (s.combo >= feverComboThreshold && s.combo % feverComboThreshold === 0) {
+        s.feverUntil = Math.min(shiftDuration, s.elapsed + feverDuration);
+        feverTriggered = true;
+      }
+    } else {
+      resetCombo(s);
+    }
+    if (rankBefore.tip > 0 && (!rankBefore.favoriteOnlyTip || favorite)) regularTip = rankBefore.tip;
+    if (stars === 5 && weathers[s.weather]?.fiveStarTip) weatherTip = weathers[s.weather].fiveStarTip;
+    if (stars >= 4) {
+      const gain = favorite ? 2 : 1;
+      s.records.guestAffinity[head.guest] = prevAffinity + gain;
+      const rankAfter = guestRank(s.records.guestAffinity[head.guest]);
+      if (rankAfter.level > rankBefore.level) rankUp = rankAfter;
+    }
+  }
+  const tip = timingBonus + comboTip + regularTip + weatherTip;
+  const price = k.burnt ? 0 : salePrice(s, head.menu);
+  const amount = k.burnt ? 0 : price + tip;
   s.balance += amount;
   s.sales += amount;
   if (k.burnt) s.burntServed++;
@@ -436,26 +684,47 @@ function serve(s, ticket) {
     s.total++; s.served++;
     s.records.dishSales[head.menu]++;
     if (stars === 5) s.records.fiveStars++;
-    if (tip) s.records.timed++;
+    if (timingBonus) s.records.timed++;
   }
   recordReview(s, stars);
-  const result = { amount, stars, fast, burnt: k.burnt, guest: head.guest, menu: head.menu, tip };
+  const result = {
+    amount, price, stars, fast, burnt: k.burnt, guest: head.guest, menu: head.menu,
+    tip, timingTip: timingBonus, comboTip, regularTip, weatherTip,
+    combo: s.combo, feverTriggered, favorite, featured, rankUp
+  };
+  if (head.special && !k.burnt) {
+    s.pendingTip = { ticket: head.id, guest: head.guest, menu: head.menu,
+      amount: salePrice(s, head.menu) * specialTipMultiplier };
+  }
   if (s.goal && !k.burnt) {
     const goal = dailyGoals[s.goal.id];
-    if (s.goal.progress < goal.target && goal.counts(result, clockMinutes(s))) s.goal.progress++;
+    if (goal && s.goal.progress < goal.target && goal.counts(result, clockMinutes(s), s)) s.goal.progress++;
   }
   removeOrder(s, head);
   recordCelebration(s, before, !goalWasDone && goalReward(s.goal) > 0 ? s.goal.id : null);
   return result;
 }
 
-function settleDay(s) {
+function resolveSpecialTip(s, ticket, rewarded) {
+  const pending = s.pendingTip;
+  if (!pending || pending.ticket !== ticket) return 0;
+  s.pendingTip = null;
+  if (!rewarded) return 0;
+  s.balance += pending.amount;
+  s.sales += pending.amount;
+  return pending.amount;
+}
+
+function settleDay(s, chosenFeaturedMenu = null) {
   if (!s.closed) return;
+  if (Number.isInteger(chosenFeaturedMenu) && menus[chosenFeaturedMenu]) {
+    s.nextFeaturedMenu = chosenFeaturedMenu;
+  }
   const before = achievementCounts(s);
   const reward = goalReward(s.goal);
   s.history.push({ day: s.day, sales: s.sales, served: s.served, missed: s.missed, arrived: s.arrived,
     reviewCount: s.reviewCount, reviewStars: s.reviewStars, burntServed: s.burntServed, unservedAtClose: s.unservedAtClose,
-    goal: s.goal, goalReward: reward });
+    goal: s.goal, goalReward: reward, weather: s.weather, featuredMenu: s.featuredMenu, bestCombo: s.dayBestCombo });
   s.balance += reward;
   s.day++;
   startDay(s);
@@ -466,11 +735,28 @@ function legacyStoves(speed) {
   const level = Number.isInteger(speed) ? Math.max(0, Math.min(2, speed)) : 0;
   return level ? [level, level] : [0];
 }
+function ensureRecords(records) {
+  const base = emptyAchievementRecords();
+  if (!records || typeof records !== "object") return base;
+  base.fiveStars = Number.isFinite(records.fiveStars) ? records.fiveStars : 0;
+  base.timed = Number.isFinite(records.timed) ? records.timed : 0;
+  if (Array.isArray(records.dishSales) && records.dishSales.length === menus.length) {
+    base.dishSales = records.dishSales.map(n => Number.isFinite(n) ? n : 0);
+  }
+  base.bestCombo = Number.isFinite(records.bestCombo) ? records.bestCombo : 0;
+  if (Array.isArray(records.guestVisits) && records.guestVisits.length === guests.length) {
+    base.guestVisits = records.guestVisits.map(n => Number.isFinite(n) ? n : 0);
+  }
+  if (Array.isArray(records.guestAffinity) && records.guestAffinity.length === guests.length) {
+    base.guestAffinity = records.guestAffinity.map(n => Number.isFinite(n) ? n : 0);
+  }
+  return base;
+}
 function restore(raw) {
   if (!raw || !Number.isInteger(raw.day) || raw.day < 1 || !Array.isArray(raw.history)) return fresh();
   // Finish steps already in progress using the timing of the original migration.
   const legacyStaffMultiplier = 1.5;
-  if ([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].includes(raw.version)) {
+  if ([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14].includes(raw.version)) {
     if (raw.version < 12) {
       raw.stoveLevels = legacyStoves(raw.speed);
       raw.interior = 0;
@@ -566,9 +852,35 @@ function restore(raw) {
       raw.celebration = null;
       raw.version = 10;
     }
+    raw.records = ensureRecords(raw.records);
     raw.decor = restoreDecor(raw);
     raw.music ??= true;
-    raw.version = 12;
+    if (raw.version < 13) {
+      raw.pendingTip = null;
+      raw.lastSpecialArrival = -2;
+    }
+    if (raw.version < 14) {
+      raw.combo = 0;
+      raw.dayBestCombo = 0;
+      raw.feverUntil = null;
+      raw.staffAutoAt = null;
+      raw.weather = "clear";
+      raw.nextWeather = pickWeather("clear");
+      raw.featuredMenu = 0;
+      raw.nextFeaturedMenu = null;
+    }
+    if (!Number.isInteger(raw.staff) || raw.staff < 0 || raw.staff > 3) raw.staff = 0;
+    if (!weathers[raw.weather]) raw.weather = "clear";
+    if (!weathers[raw.nextWeather]) raw.nextWeather = pickWeather(raw.weather);
+    if (!Number.isInteger(raw.featuredMenu) || !menus[raw.featuredMenu]) raw.featuredMenu = 0;
+    if (raw.nextFeaturedMenu != null && (!Number.isInteger(raw.nextFeaturedMenu) || !menus[raw.nextFeaturedMenu])) raw.nextFeaturedMenu = null;
+    if (raw.goal && !dailyGoals[raw.goal.id]) raw.goal = { id: "fast", progress: 0 };
+    if (!Number.isFinite(raw.combo) || raw.combo < 0) raw.combo = 0;
+    if (!Number.isFinite(raw.dayBestCombo) || raw.dayBestCombo < 0) raw.dayBestCombo = 0;
+    if (raw.feverUntil != null && (!Number.isFinite(raw.feverUntil) || raw.feverUntil <= raw.elapsed)) raw.feverUntil = null;
+    if (raw.staffAutoAt != null && !Number.isFinite(raw.staffAutoAt)) raw.staffAutoAt = null;
+    raw.version = 14;
+    syncStaffAuto(raw);
     return raw;
   }
   // Keep the original shop economy and honor an order already cooking or ready.
